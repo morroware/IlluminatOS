@@ -6,6 +6,7 @@
 import AppBase from './AppBase.js';
 import EventBus from '../core/EventBus.js';
 import FeatureRegistry, { FEATURE_CATEGORIES } from '../core/FeatureRegistry.js';
+import WebAdminAuth from '../core/WebAdminAuth.js';
 
 class FeaturesSettings extends AppBase {
     constructor() {
@@ -307,14 +308,15 @@ class FeaturesSettings extends AppBase {
             return '';
         }
 
-        // Check if user is admin for adminOnly settings
-        const isAdmin = this.getState('user.isAdmin');
+        // Check if user is web admin for adminOnly settings
+        // This ensures only actual web admins (not just OS "admin" users) can access these
+        const isWebAdmin = WebAdminAuth.isWebAdmin();
 
         return feature.settings
             .filter(s => {
                 const key = s.key || s.id;
                 if (key === 'enabled') return false; // Skip the main enable toggle
-                if (s.adminOnly && !isAdmin) return false; // Skip admin-only settings for non-admins
+                if (s.adminOnly && !isWebAdmin) return false; // Skip admin-only settings for non-web-admins
                 return true;
             })
             .map(setting => this.renderSetting(feature.id, setting, feature.config))

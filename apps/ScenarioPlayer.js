@@ -14,6 +14,7 @@ import { ScenarioManager } from '../core/scripted-events/ScenarioManager.js';
 import { scenarioLoader } from '../core/scripted-events/ScenarioLoader.js';
 import StateManager from '../core/StateManager.js';
 import EventBus from '../core/EventBus.js';
+import WebAdminAuth from '../core/WebAdminAuth.js';
 
 class ScenarioPlayer extends AppBase {
     constructor() {
@@ -30,6 +31,24 @@ class ScenarioPlayer extends AppBase {
     }
 
     onOpen() {
+        // Check if ScenarioPlayer is restricted to web admins only
+        const hideForUsers = ScenarioManager.getConfig('hideScenarioPlayerForUsers');
+        const isWebAdmin = WebAdminAuth.isWebAdmin();
+
+        if (hideForUsers && !isWebAdmin) {
+            return `
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; background: #c0c0c0; padding: 40px; text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: 20px;">🔒</div>
+                    <h2 style="color: #000080; margin-bottom: 10px;">Access Restricted</h2>
+                    <p style="color: #666; font-size: 12px; max-width: 400px;">
+                        The Scenario Player has been restricted to administrators only.
+                        <br><br>
+                        If you need access, please contact the site administrator.
+                    </p>
+                </div>
+            `;
+        }
+
         return `
             <style>
                 .scenario-player {
