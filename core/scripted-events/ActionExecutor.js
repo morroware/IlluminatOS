@@ -274,22 +274,14 @@ const actionHandlers = {
     async showDialog(params, context) {
         const { title, message, icon = 'info', buttons = ['OK'] } = params;
 
-        return new Promise(resolve => {
-            // Use system dialogs if available
-            EventBus.emit('dialog:show', {
-                title,
-                message,
-                icon,
-                buttons,
-                callback: (result) => resolve({ button: result })
-            });
-
-            // Fallback to alert if no dialog system
-            if (!EventBus.listenerCount('dialog:show')) {
-                alert(`${title}\n\n${message}`);
-                resolve({ button: 'OK' });
-            }
+        // Use system dialogs - emit 'dialog:alert' which SystemDialogs listens for
+        EventBus.emit('dialog:alert', {
+            title,
+            message,
+            icon
         });
+
+        return { button: buttons[0] || 'OK' };
     },
 
     /**
