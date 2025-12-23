@@ -59,17 +59,24 @@ export class TriggerEngine {
         if (this.active) return;
         this.active = true;
 
-        // Subscribe to all events for global matching
-        this.globalSubscription = EventBus.on('*', (event, data) => {
-            if (this.active) {
-                this.handleEvent(event, data);
-            }
-        });
+        // Note: EventBus doesn't support wildcard subscriptions natively.
+        // We rely on registerTrigger() to subscribe to specific events when triggers are registered.
+        // For global triggers that match all events, we need to patch into the EventBus emit.
 
-        // If EventBus doesn't support wildcard, fall back to specific subscriptions
-        if (!this.globalSubscription) {
-            this.setupSpecificSubscriptions();
-        }
+        // Store reference to original emit for global trigger matching
+        this._originalEmit = EventBus.emit.bind(EventBus);
+        const self = this;
+
+        // Wrap EventBus.emit to intercept all events for trigger matching
+        EventBus.emit = function(event, data = null) {
+            // Call original emit first
+            self._originalEmit(event, data);
+
+            // Then handle for trigger matching (if active and not a scenario internal event to avoid loops)
+            if (self.active && !event.startsWith('scenario:action:')) {
+                self.handleEvent(event, data || {});
+            }
+        };
     }
 
     /**
@@ -77,6 +84,12 @@ export class TriggerEngine {
      */
     stop() {
         this.active = false;
+
+        // Restore original EventBus.emit if we wrapped it
+        if (this._originalEmit) {
+            EventBus.emit = this._originalEmit;
+            this._originalEmit = null;
+        }
 
         // Cleanup subscriptions
         this.subscriptions.forEach(unsub => {

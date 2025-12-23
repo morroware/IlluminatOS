@@ -97,7 +97,7 @@
             "triggers": [
                 {
                     "id": "mystery-opened",
-                    "event": "notepad:file:opened",
+                    "event": "notepad:opened",
                     "conditions": {
                         "type": "or",
                         "conditions": [
