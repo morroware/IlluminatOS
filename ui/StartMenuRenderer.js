@@ -117,6 +117,8 @@ class StartMenuRendererClass {
         this.element.classList.add('active');
         this.startButton.classList.add('active');
         EventBus.emit(Events.SOUND_PLAY, { type: 'click' });
+        // Emit semantic event for scenario triggers
+        EventBus.emit('startmenu:opened', { timestamp: Date.now() });
     }
 
     close() {

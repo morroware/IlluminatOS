@@ -4,6 +4,8 @@
  */
 
 import AppBase from './AppBase.js';
+import EventBus from '../core/EventBus.js';
+import { CalculatorEvents } from '../core/scripted-events/SemanticEvents.js';
 
 class Calculator extends AppBase {
     constructor() {
@@ -60,6 +62,9 @@ class Calculator extends AppBase {
     onMount() {
         const buttonsContainer = this.getElement('.calc-buttons');
 
+        // Emit opened event for scenarios
+        EventBus.emit(CalculatorEvents.OPENED, { windowId: this.windowId });
+
         // Event Delegation - addHandler auto-scopes to this window
         this.addHandler(buttonsContainer, 'click', (e) => {
             const target = e.target.closest('button');
@@ -69,14 +74,17 @@ class Calculator extends AppBase {
 
             if (target.dataset.num) {
                 this.inputDigit(target.dataset.num);
+                EventBus.emit(CalculatorEvents.DIGIT_PRESSED, { digit: target.dataset.num });
             } else if (target.dataset.action === 'decimal') {
                 this.inputDecimal();
             } else if (target.dataset.action === 'operator') {
                 this.handleOperator(target.dataset.op);
+                EventBus.emit(CalculatorEvents.OPERATOR_PRESSED, { operator: target.dataset.op });
             } else if (target.dataset.action === 'equal') {
                 this.handleEqual();
             } else if (target.dataset.action === 'clear') {
                 this.resetCalculator();
+                EventBus.emit(CalculatorEvents.CLEARED, {});
             }
             this.updateDisplay();
         });
@@ -150,6 +158,14 @@ class Calculator extends AppBase {
         } else if (this.operator) {
             const result = this.calculate(this.firstOperand, inputValue, this.operator);
             this.displayValue = String(parseFloat(result.toFixed(7)));
+
+            // Emit result event for intermediate calculations
+            EventBus.emit(CalculatorEvents.RESULT, {
+                value: parseFloat(result.toFixed(7)),
+                expression: `${this.firstOperand} ${this.operator} ${inputValue}`,
+                displayValue: this.displayValue
+            });
+
             this.firstOperand = result;
         }
 
@@ -163,6 +179,15 @@ class Calculator extends AppBase {
         const result = this.calculate(this.firstOperand, inputValue, this.operator);
 
         this.displayValue = String(parseFloat(result.toFixed(7)));
+
+        // Emit result event for scenarios - this is what cipher-hunt listens for
+        EventBus.emit(CalculatorEvents.RESULT, {
+            value: parseFloat(result.toFixed(7)),
+            expression: `${this.firstOperand} ${this.operator} ${inputValue}`,
+            displayValue: this.displayValue
+        });
+        EventBus.emit(CalculatorEvents.EQUALS, { result: parseFloat(result.toFixed(7)) });
+
         this.firstOperand = null;
         this.operator = null;
         this.waitingForSecondOperand = true;
