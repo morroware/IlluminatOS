@@ -31,7 +31,7 @@ import { ScenarioEvents } from './SemanticEvents.js';
 // Available built-in scenarios for the dropdown
 const BUILT_IN_SCENARIOS = [
     { value: '', label: 'None (disabled)' },
-    { value: '/scenarios/tutorial.scenario.json', label: 'RetrOS Tutorial' },
+    { value: '/scenarios/tutorial.scenario.json', label: 'IlluminatOS Tutorial' },
     { value: '/scenarios/cipher-hunt.scenario.json', label: 'The Cipher Hunt' }
 ];
 

@@ -44,7 +44,7 @@
             {
                 "type": "createFile",
                 "path": ["Desktop", "clue_1.txt"],
-                "content": "CLUE #1 - THE ALPHABET CIPHER\n\nThe first number is hidden in this message:\n\n\"Fwrnw ir wkh iluvw qxpehu.\"\n\nHint: Caesar would know... shift by 3.",
+                "content": "CLUE #1 - THE ALPHABET CIPHER\n\nThe first number is hidden in this message:\n\n\"Wkuhh lv wkh iluvw qxpehu.\"\n\nHint: Caesar would know... shift by 3.",
                 "addToDesktop": true,
                 "icon": "📝"
             },

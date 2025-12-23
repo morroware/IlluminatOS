@@ -160,7 +160,8 @@ const actionHandlers = {
      * Create a file in the virtual file system
      */
     async createFile(params, context) {
-        const { path, content = '', addToDesktop = false, icon } = params;
+        const { path: rawPath, content = '', addToDesktop = false, icon } = params;
+        const path = normalizePath(rawPath);
         FileSystemManager.writeFile(path, content);
 
         if (addToDesktop) {
@@ -181,7 +182,8 @@ const actionHandlers = {
      * Modify an existing file
      */
     async modifyFile(params, context) {
-        const { path, content, append = false } = params;
+        const { path: rawPath, content, append = false } = params;
+        const path = normalizePath(rawPath);
 
         if (append) {
             const existing = FileSystemManager.readFile(path) || '';
@@ -197,7 +199,8 @@ const actionHandlers = {
      * Delete a file
      */
     async deleteFile(params, context) {
-        const { path } = params;
+        const { path: rawPath } = params;
+        const path = normalizePath(rawPath);
         FileSystemManager.deleteFile(path);
         return { path, deleted: true };
     },
@@ -206,7 +209,8 @@ const actionHandlers = {
      * Create a folder
      */
     async createFolder(params, context) {
-        const { path } = params;
+        const { path: rawPath } = params;
+        const path = normalizePath(rawPath);
         FileSystemManager.createDirectory(path);
         return { path, created: true };
     },
@@ -827,6 +831,18 @@ const actionHandlers = {
 // =============================================================================
 // HELPER FUNCTIONS
 // =============================================================================
+
+/**
+ * Normalize a file path - handles both string and array formats
+ * @param {string|Array} path - Path as string or array of segments
+ * @returns {string} - Normalized path string
+ */
+function normalizePath(path) {
+    if (Array.isArray(path)) {
+        return path.join('/');
+    }
+    return path;
+}
 
 /**
  * Get an appropriate icon for a file based on extension
