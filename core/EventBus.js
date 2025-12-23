@@ -12,22 +12,36 @@ class EventBusClass {
     constructor() {
         // Map of event names to arrays of listener functions
         this.listeners = new Map();
+        // Wildcard listeners that receive all events
+        this.wildcardListeners = [];
         // Debug mode logs all events
         this.debug = false;
     }
 
     /**
      * Subscribe to an event
-     * @param {string} event - Event name (e.g., 'window:open')
+     * @param {string} event - Event name (e.g., 'window:open') or '*' for all events
      * @param {Function} callback - Handler function
      * @returns {Function} Unsubscribe function
      */
     on(event, callback) {
+        // Handle wildcard subscriptions
+        if (event === '*') {
+            this.wildcardListeners.push(callback);
+            return () => {
+                const index = this.wildcardListeners.indexOf(callback);
+                if (index > -1) {
+                    this.wildcardListeners.splice(index, 1);
+                }
+            };
+        }
+
+        // Normal event subscription
         if (!this.listeners.has(event)) {
             this.listeners.set(event, []);
         }
         this.listeners.get(event).push(callback);
-        
+
         // Return unsubscribe function for easy cleanup
         return () => this.off(event, callback);
     }
@@ -70,17 +84,30 @@ class EventBusClass {
             console.log(`[EventBus] ${event}`, data);
         }
 
-        if (!this.listeners.has(event)) return;
-        
-        // Copy array to prevent issues if handler modifies listeners
-        const callbacks = [...this.listeners.get(event)];
-        callbacks.forEach(callback => {
-            try {
-                callback(data);
-            } catch (error) {
-                console.error(`[EventBus] Error in handler for "${event}":`, error);
-            }
-        });
+        // Notify specific event listeners
+        if (this.listeners.has(event)) {
+            // Copy array to prevent issues if handler modifies listeners
+            const callbacks = [...this.listeners.get(event)];
+            callbacks.forEach(callback => {
+                try {
+                    callback(data);
+                } catch (error) {
+                    console.error(`[EventBus] Error in handler for "${event}":`, error);
+                }
+            });
+        }
+
+        // Notify wildcard listeners
+        if (this.wildcardListeners.length > 0) {
+            const wildcardCallbacks = [...this.wildcardListeners];
+            wildcardCallbacks.forEach(callback => {
+                try {
+                    callback(event, data);
+                } catch (error) {
+                    console.error(`[EventBus] Error in wildcard handler for "${event}":`, error);
+                }
+            });
+        }
     }
 
     /**
@@ -89,9 +116,14 @@ class EventBusClass {
      */
     clear(event = null) {
         if (event) {
-            this.listeners.delete(event);
+            if (event === '*') {
+                this.wildcardListeners = [];
+            } else {
+                this.listeners.delete(event);
+            }
         } else {
             this.listeners.clear();
+            this.wildcardListeners = [];
         }
     }
 
@@ -101,6 +133,9 @@ class EventBusClass {
      * @returns {number} Listener count
      */
     listenerCount(event) {
+        if (event === '*') {
+            return this.wildcardListeners.length;
+        }
         return this.listeners.has(event) ? this.listeners.get(event).length : 0;
     }
 }
