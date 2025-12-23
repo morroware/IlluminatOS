@@ -1,8 +1,8 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "$id": "https://retros.example.com/scenario.schema.json",
-    "title": "RetrOS Scenario",
-    "description": "Schema for RetrOS scripted scenario files",
+    "$id": "https://illuminatos.example.com/scenario.schema.json",
+    "title": "IlluminatOS Scenario",
+    "description": "Schema for IlluminatOS scripted scenario files",
     "type": "object",
     "required": ["id", "name", "stages"],
     "properties": {
@@ -65,7 +65,7 @@
                 },
                 "minVersion": {
                     "type": "string",
-                    "description": "Minimum RetrOS version"
+                    "description": "Minimum IlluminatOS version"
                 }
             }
         },

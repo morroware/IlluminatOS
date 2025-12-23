@@ -298,7 +298,7 @@ class ScenarioPlayer extends AppBase {
         const builtIn = [
             {
                 id: 'tutorial',
-                name: 'RetrOS Tutorial',
+                name: 'IlluminatOS Tutorial',
                 description: 'Learn the basics of IlluminatOS! This guided tutorial will walk you through the desktop, apps, and features.',
                 icon: '📚',
                 difficulty: 'easy',
