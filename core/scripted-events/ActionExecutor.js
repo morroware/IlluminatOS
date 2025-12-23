@@ -165,7 +165,7 @@ const actionHandlers = {
         FileSystemManager.writeFile(path, content);
 
         if (addToDesktop) {
-            const fileName = path.split('/').pop();
+            const fileName = path[path.length - 1];
             await actionHandlers.createDesktopIcon({
                 id: `file-${Date.now()}`,
                 label: fileName,
@@ -826,14 +826,42 @@ const actionHandlers = {
 
 /**
  * Normalize a file path - handles both string and array formats
+ * Expands shorthand paths like ["Desktop", "file.txt"] to full paths
  * @param {string|Array} path - Path as string or array of segments
- * @returns {string} - Normalized path string
+ * @returns {Array} - Normalized path as array of segments
  */
 function normalizePath(path) {
+    let parts;
+
     if (Array.isArray(path)) {
-        return path.join('/');
+        parts = [...path];
+    } else if (typeof path === 'string') {
+        parts = path.split('/').filter(p => p.length > 0);
+    } else {
+        return [];
     }
-    return path;
+
+    // Expand shorthand paths - if path doesn't start with a drive letter,
+    // check if the first segment is a known folder name
+    if (parts.length > 0 && !parts[0].includes(':')) {
+        const firstPart = parts[0].toLowerCase();
+
+        // Map of shorthand folder names to full paths
+        const pathMappings = {
+            'desktop': ['C:', 'Users', 'User', 'Desktop'],
+            'documents': ['C:', 'Users', 'User', 'Documents'],
+            'pictures': ['C:', 'Users', 'User', 'Pictures'],
+            'music': ['C:', 'Users', 'User', 'Music'],
+            'downloads': ['C:', 'Users', 'User', 'Downloads']
+        };
+
+        if (pathMappings[firstPart]) {
+            // Replace the shorthand with the full path
+            parts = [...pathMappings[firstPart], ...parts.slice(1)];
+        }
+    }
+
+    return parts;
 }
 
 /**

@@ -376,11 +376,24 @@ const conditionHandlers = {
             case 'notEquals':
                 return actual !== value;
             case 'contains':
-                return typeof actual === 'string' && actual.includes(value);
+                // Handle string, array, and convert arrays to string for path matching
+                if (typeof actual === 'string') {
+                    return actual.includes(value);
+                }
+                if (Array.isArray(actual)) {
+                    // Check if any element contains the value, or if joined path contains it
+                    return actual.some(item => String(item).includes(value)) ||
+                           actual.join('/').includes(value);
+                }
+                return false;
             case 'startsWith':
-                return typeof actual === 'string' && actual.startsWith(value);
+                if (typeof actual === 'string') return actual.startsWith(value);
+                if (Array.isArray(actual)) return actual.join('/').startsWith(value);
+                return false;
             case 'endsWith':
-                return typeof actual === 'string' && actual.endsWith(value);
+                if (typeof actual === 'string') return actual.endsWith(value);
+                if (Array.isArray(actual)) return actual.join('/').endsWith(value);
+                return false;
             case 'greater':
                 return actual > value;
             case 'less':
@@ -392,7 +405,9 @@ const conditionHandlers = {
             case 'in':
                 return Array.isArray(value) && value.includes(actual);
             case 'matches':
-                return typeof actual === 'string' && new RegExp(value).test(actual);
+                if (typeof actual === 'string') return new RegExp(value).test(actual);
+                if (Array.isArray(actual)) return new RegExp(value).test(actual.join('/'));
+                return false;
             default:
                 return actual === value;
         }

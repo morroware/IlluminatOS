@@ -420,13 +420,6 @@ class ScenarioPlayer extends AppBase {
     async startScenario(scenario) {
         console.log('[ScenarioPlayer] Starting scenario:', scenario.name, 'path:', scenario.path);
 
-        // Show loading message via system dialog
-        EventBus.emit('dialog:alert', {
-            message: `Loading "${scenario.name}"...`,
-            title: 'Scenario Player',
-            icon: 'info'
-        });
-
         try {
             // Try to load from file
             const loaded = await ScenarioManager.loadScenario(scenario.path);
