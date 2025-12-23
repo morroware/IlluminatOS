@@ -51,7 +51,8 @@ class ScenarioManagerFeature extends FeatureBase {
                 autoStart: false,
                 debugMode: false,
                 showIndicator: true,
-                defaultScenario: ''  // Path to auto-start scenario on boot
+                defaultScenario: '',  // Path to auto-start scenario on boot
+                hideScenarioPlayerForUsers: false  // Hide ScenarioPlayer from non-web-admins
             },
             settings: [
                 {
@@ -72,8 +73,16 @@ class ScenarioManagerFeature extends FeatureBase {
                     type: 'select',
                     options: BUILT_IN_SCENARIOS,
                     default: '',
-                    adminOnly: true,  // Only admins can configure this
+                    adminOnly: true,  // Only web admins can configure this
                     description: 'Select a scenario to automatically start when the site loads'
+                },
+                {
+                    id: 'hideScenarioPlayerForUsers',
+                    label: 'Hide Scenario Player for Non-Admins',
+                    type: 'boolean',
+                    default: false,
+                    adminOnly: true,  // Only web admins can configure this
+                    description: 'When enabled, only web admins can access the Scenario Player app. Useful when running kiosk-mode scenarios.'
                 }
             ]
         });

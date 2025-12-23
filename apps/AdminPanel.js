@@ -7,6 +7,7 @@ import AppBase from './AppBase.js';
 import StateManager from '../core/StateManager.js';
 import StorageManager from '../core/StorageManager.js';
 import EventBus from '../core/EventBus.js';
+import WebAdminAuth from '../core/WebAdminAuth.js';
 
 class AdminPanel extends AppBase {
     constructor() {
@@ -24,10 +25,10 @@ class AdminPanel extends AppBase {
 
     onOpen() {
         const icons = StateManager.getState('icons') || [];
-        const isAdmin = StateManager.getState('user.isAdmin');
-        const hasPassword = !!StorageManager.get('adminPassword');
+        const isWebAdmin = WebAdminAuth.isWebAdmin();
 
-        if (!isAdmin && hasPassword) {
+        // Require authentication if password is set and not authenticated
+        if (!isWebAdmin) {
             return this.renderPasswordPrompt();
         }
 
@@ -378,9 +379,9 @@ class AdminPanel extends AppBase {
 
         const attemptLogin = () => {
             const password = passwordInput.value;
-            const saved = StorageManager.get('adminPassword');
 
-            if (password === saved) {
+            if (WebAdminAuth.authenticateWebAdmin(password)) {
+                // Also set OS admin flag for compatibility
                 StateManager.setState('user.isAdmin', true);
                 this.setContent(this.renderAdminInterface());
             } else {
@@ -556,7 +557,7 @@ class AdminPanel extends AppBase {
             this.addHandler(setPasswordBtn, 'click', () => {
                 const password = this.getElement('#new-password').value;
                 if (password) {
-                    StorageManager.set('adminPassword', password);
+                    WebAdminAuth.setAdminPassword(password);
                     alert('Password set successfully!');
                     this.getElement('#new-password').value = '';
                 }
@@ -567,7 +568,7 @@ class AdminPanel extends AppBase {
         if (clearPasswordBtn) {
             this.addHandler(clearPasswordBtn, 'click', () => {
                 if (confirm('Remove password protection?')) {
-                    StorageManager.remove('adminPassword');
+                    WebAdminAuth.removeAdminPassword();
                     StateManager.setState('user.isAdmin', false);
                     alert('Password protection removed');
                 }
