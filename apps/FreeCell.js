@@ -10,6 +10,8 @@
  */
 
 import AppBase from './AppBase.js';
+import EventBus from '../core/EventBus.js';
+import { FreeCellEvents, GameEvents } from '../core/scripted-events/SemanticEvents.js';
 
 class FreeCell extends AppBase {
     constructor() {
@@ -168,6 +170,10 @@ class FreeCell extends AppBase {
 
         this.renderBoard();
         this.updateDisplay();
+
+        // Emit game started events
+        EventBus.emit(FreeCellEvents.STARTED, { time: 0 });
+        EventBus.emit(GameEvents.STARTED, { appId: 'freecell' });
     }
 
     getRankDisplay(rank) {
@@ -308,6 +314,8 @@ class FreeCell extends AppBase {
         this.renderBoard();
         this.updateDisplay();
         this.playSound('click');
+
+        EventBus.emit(FreeCellEvents.FREECELL_USED, { card: card.id, cellIndex, moves: this.moves });
     }
 
     tryMoveToFoundation(foundIndex) {
@@ -357,6 +365,13 @@ class FreeCell extends AppBase {
         this.updateDisplay();
         this.playSound('click');
         this.checkWin();
+
+        EventBus.emit(FreeCellEvents.FOUNDATION_ADDED, {
+            card: card.id,
+            foundationIndex: foundIndex,
+            foundationCount: this.foundations[foundIndex].length,
+            moves: this.moves
+        });
     }
 
     tryMoveToColumn(colIndex) {
@@ -419,6 +434,14 @@ class FreeCell extends AppBase {
         this.renderBoard();
         this.updateDisplay();
         this.playSound('click');
+
+        EventBus.emit(FreeCellEvents.CARD_MOVED, {
+            cards: cards.map(c => c.id),
+            from: source,
+            to: 'column',
+            columnIndex: colIndex,
+            moves: this.moves
+        });
     }
 
     autoMoveToFoundation(source, sourceIndex, cardIndex) {
@@ -546,6 +569,10 @@ class FreeCell extends AppBase {
         this.getElement('#fcWinScreen').classList.add('active');
 
         this.playSound('achievement');
+
+        // Emit win events
+        EventBus.emit(FreeCellEvents.WIN, { time: this.time, moves: this.moves });
+        EventBus.emit(GameEvents.WIN, { appId: 'freecell', time: this.time, moves: this.moves });
 
         // Victory animation - cascade cards
         this.cascadeVictory();

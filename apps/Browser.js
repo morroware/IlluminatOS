@@ -5,6 +5,8 @@
 
 import AppBase from './AppBase.js';
 import WindowManager from '../core/WindowManager.js';
+import EventBus from '../core/EventBus.js';
+import { BrowserEvents } from '../core/scripted-events/SemanticEvents.js';
 
 class Browser extends AppBase {
     constructor() {
@@ -203,11 +205,19 @@ class Browser extends AppBase {
             if (loading) loading.style.display = 'none';
             this.updateStatus('Done');
             this.updateNavButtons();
+
+            const currentUrl = this.history[this.historyIndex];
+            if (currentUrl) {
+                EventBus.emit(BrowserEvents.LOADED, { url: currentUrl });
+            }
         });
 
         // Navigate to initial URL or homepage
         this.navigate(this.initialUrl || this.homepage);
         this.initialUrl = null; // Reset after use
+
+        // Emit browser opened event
+        EventBus.emit(BrowserEvents.OPENED, { homepage: this.homepage });
     }
 
     navigate(url) {
@@ -236,6 +246,8 @@ class Browser extends AppBase {
             frame.src = url;
             if (addressInput) addressInput.value = url;
             this.updateNavButtons();
+
+            EventBus.emit(BrowserEvents.NAVIGATE, { url });
         }
     }
 
@@ -250,6 +262,8 @@ class Browser extends AppBase {
             if (addressInput) addressInput.value = url;
             this.updateStatus('Loading ' + url + '...');
             this.updateNavButtons();
+
+            EventBus.emit(BrowserEvents.BACK, { url });
         }
     }
 
@@ -264,6 +278,8 @@ class Browser extends AppBase {
             if (addressInput) addressInput.value = url;
             this.updateStatus('Loading ' + url + '...');
             this.updateNavButtons();
+
+            EventBus.emit(BrowserEvents.FORWARD, { url });
         }
     }
 
@@ -272,11 +288,14 @@ class Browser extends AppBase {
         if (frame) {
             this.updateStatus('Refreshing...');
             frame.src = frame.src;
+
+            EventBus.emit(BrowserEvents.REFRESH, { url: frame.src });
         }
     }
 
     goHome() {
         this.navigate(this.homepage);
+        EventBus.emit(BrowserEvents.HOME, { url: this.homepage });
     }
 
     updateStatus(text) {

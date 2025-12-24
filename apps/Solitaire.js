@@ -6,6 +6,8 @@
 
 import AppBase from './AppBase.js';
 import StateManager from '../core/StateManager.js';
+import EventBus from '../core/EventBus.js';
+import { SolitaireEvents, GameEvents } from '../core/scripted-events/SemanticEvents.js';
 
 class Solitaire extends AppBase {
     constructor() {
@@ -131,6 +133,10 @@ class Solitaire extends AppBase {
 
         this.renderAll();
         this.timer = setInterval(() => { this.time++; this.updateHeader(); }, 1000);
+
+        // Emit game started events
+        EventBus.emit(SolitaireEvents.STARTED, { time: 0 });
+        EventBus.emit(GameEvents.STARTED, { appId: 'solitaire' });
     }
 
     drawStock() {
@@ -138,10 +144,12 @@ class Solitaire extends AppBase {
             if (this.waste.length === 0) return;
             this.stock = this.waste.reverse().map(c => ({...c, faceUp: false}));
             this.waste = [];
+            EventBus.emit(SolitaireEvents.STOCK_RECYCLED, { stockCount: this.stock.length });
         } else {
             let card = this.stock.pop();
             card.faceUp = true;
             this.waste.push(card);
+            EventBus.emit(SolitaireEvents.STOCK_DRAWN, { card: card.val + card.suit, remaining: this.stock.length });
         }
         this.renderStock();
         this.renderWaste();
@@ -197,15 +205,32 @@ class Solitaire extends AppBase {
         else if (fromType === 'tableau') {
             const col = this.tableau[fromIdx];
             cardsToMove = col.splice(fromCardIdx);
-            if (col.length > 0) col[col.length - 1].faceUp = true;
+            if (col.length > 0) {
+                col[col.length - 1].faceUp = true;
+                EventBus.emit(SolitaireEvents.CARD_FLIPPED, { card: col[col.length - 1].val + col[col.length - 1].suit });
+            }
         }
 
         if (toType === 'tableau') this.tableau[toIdx].push(...cardsToMove);
-        else if (toType === 'foundation') this.foundations[toIdx].push(...cardsToMove);
+        else if (toType === 'foundation') {
+            this.foundations[toIdx].push(...cardsToMove);
+            EventBus.emit(SolitaireEvents.FOUNDATION_ADDED, {
+                card: cardsToMove[0].val + cardsToMove[0].suit,
+                foundationIndex: toIdx,
+                foundationCount: this.foundations[toIdx].length
+            });
+        }
 
         this.moves++;
         this.renderAll();
         this.checkWin();
+
+        EventBus.emit(SolitaireEvents.CARD_MOVED, {
+            cards: cardsToMove.map(c => c.val + c.suit),
+            from: fromType,
+            to: toType,
+            moves: this.moves
+        });
     }
 
     handleDblClick(card, source, pileIdx) {
@@ -234,6 +259,10 @@ class Solitaire extends AppBase {
             this.isWon = true;
             clearInterval(this.timer);
             if (StateManager.unlockAchievement) StateManager.unlockAchievement('solitaire_master');
+
+            EventBus.emit(SolitaireEvents.WIN, { time: this.time, moves: this.moves, score: this.moves * 5 });
+            EventBus.emit(GameEvents.WIN, { appId: 'solitaire', time: this.time, moves: this.moves });
+
             alert("You Won!");
         }
     }

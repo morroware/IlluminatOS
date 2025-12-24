@@ -6,6 +6,7 @@
 import AppBase from './AppBase.js';
 import EventBus, { Events } from '../core/EventBus.js';
 import StorageManager from '../core/StorageManager.js';
+import { SkiFreeEvents, GameEvents } from '../core/scripted-events/SemanticEvents.js';
 
 class SkiFree extends AppBase {
     constructor() {
@@ -339,6 +340,10 @@ class SkiFree extends AppBase {
         this.gameLoop = requestAnimationFrame((t) => this.update(t));
         this.playSound('start');
         this.updateStateText('Skiing!');
+
+        // Emit game started events
+        EventBus.emit(SkiFreeEvents.STARTED, { lives: this.lives });
+        EventBus.emit(GameEvents.STARTED, { appId: 'skifree' });
     }
 
     togglePause() {
@@ -620,6 +625,8 @@ class SkiFree extends AppBase {
                         this.score += 100;
                         this.createBonusText(obs.x, obs.y, '+100 JUMP!');
                         this.playSound('jump');
+                        EventBus.emit(SkiFreeEvents.JUMPED, { score: this.score, distance: Math.floor(this.distance) });
+                        EventBus.emit(SkiFreeEvents.RAMP_HIT, { score: this.score });
                     }
                 } else if (obs.type === 'flag') {
                     this.score += 50;
@@ -687,6 +694,13 @@ class SkiFree extends AppBase {
             life: 50
         });
 
+        // Emit obstacle hit event
+        EventBus.emit(SkiFreeEvents.OBSTACLE_HIT, {
+            type: obs.type,
+            lives: this.lives,
+            distance: Math.floor(this.distance)
+        });
+
         // Check if out of lives
         if (this.lives <= 0) {
             this.updateStateText('OUT OF LIVES! Press SPACE to restart');
@@ -707,6 +721,8 @@ class SkiFree extends AppBase {
         this.playSound('yeti');
         this.updateStateText('⚠️ YETI! RUN! Press F for speed!');
         this.flashTimer = 30;
+
+        EventBus.emit(SkiFreeEvents.MONSTER_SPAWNED, { distance: Math.floor(this.distance) });
     }
 
     updateYeti() {
@@ -758,6 +774,8 @@ class SkiFree extends AppBase {
             this.screenShake = 30;
             this.playSound('eaten');
             this.updateStateText('🥶 EATEN BY YETI!');
+
+            EventBus.emit(SkiFreeEvents.MONSTER_CAUGHT, { distance: Math.floor(this.distance), score: this.score });
         }
 
         // Yeti left behind?
@@ -767,6 +785,8 @@ class SkiFree extends AppBase {
             this.createBonusText(this.canvas.width / 2, 100, '+500 ESCAPED YETI!');
             this.yetiTriggerDistance = this.distance + 1500;
             this.updateStateText('You escaped! +500 points!');
+
+            EventBus.emit(SkiFreeEvents.MONSTER_ESCAPED, { distance: Math.floor(this.distance), score: this.score });
         }
     }
 
@@ -839,6 +859,19 @@ class SkiFree extends AppBase {
             this.highScore = this.score;
             StorageManager.set('skifree_highscore', this.highScore);
         }
+
+        // Emit game over events
+        EventBus.emit(SkiFreeEvents.FINISHED, {
+            distance: Math.floor(this.distance),
+            score: this.score,
+            highScore: this.highScore,
+            byYeti
+        });
+        EventBus.emit(GameEvents.LOSE, {
+            appId: 'skifree',
+            score: this.score,
+            distance: Math.floor(this.distance)
+        });
 
         this.drawGameOverScreen(byYeti);
     }
