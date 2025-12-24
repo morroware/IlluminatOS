@@ -5,6 +5,8 @@
 
 import AppBase from './AppBase.js';
 import FileSystemManager from '../core/FileSystemManager.js';
+import EventBus from '../core/EventBus.js';
+import { PaintEvents } from '../core/scripted-events/SemanticEvents.js';
 
 class Paint extends AppBase {
     constructor() {
@@ -152,6 +154,7 @@ class Paint extends AppBase {
         // Tools
         this.getElements('[data-tool]').forEach(btn => {
             btn.addEventListener('click', (e) => {
+                const previousTool = this.tool;
                 this.tool = btn.dataset.tool;
                 this.getElements('[data-tool]').forEach(b => {
                     b.classList.remove('active-tool');
@@ -159,9 +162,11 @@ class Paint extends AppBase {
                 });
                 btn.classList.add('active-tool');
                 btn.style.background = '#e0e0e0'; // Active state look
-                
+
                 this.updateCursor(canvas);
                 this.updateStatus(`Tool: ${this.tool.charAt(0).toUpperCase() + this.tool.slice(1)}`);
+
+                EventBus.emit(PaintEvents.TOOL_SELECTED, { tool: this.tool, previousTool });
             });
         });
 
@@ -177,7 +182,11 @@ class Paint extends AppBase {
 
         // Inputs
         this.getElement('#customColor')?.addEventListener('input', (e) => this.setColor(e.target.value));
-        this.getElement('#brushSize')?.addEventListener('change', (e) => this.brushSize = parseInt(e.target.value));
+        this.getElement('#brushSize')?.addEventListener('change', (e) => {
+            const previousSize = this.brushSize;
+            this.brushSize = parseInt(e.target.value);
+            EventBus.emit(PaintEvents.BRUSH_RESIZED, { size: this.brushSize, previousSize });
+        });
         
         // Actions
         this.getElement('#btnClear')?.addEventListener('click', () => this.clearCanvas());
@@ -193,6 +202,9 @@ class Paint extends AppBase {
             });
             this.resizeObserver.observe(canvasWrapper);
         }
+
+        // Emit started event
+        EventBus.emit(PaintEvents.STARTED, { tool: this.tool, color: this.color });
     }
 
     resizeCanvas() {
@@ -234,12 +246,15 @@ class Paint extends AppBase {
     }
 
     setColor(c) {
+        const previousColor = this.color;
         this.color = c;
-        if (this.tool === 'eraser') this.tool = 'brush'; 
-        
+        if (this.tool === 'eraser') this.tool = 'brush';
+
         // Update the big preview box
         const preview = this.getElement('#currentColorDisplay');
         if (preview) preview.style.background = c;
+
+        EventBus.emit(PaintEvents.COLOR_SELECTED, { color: c, previousColor });
     }
 
     updateCursor(canvas) {
@@ -269,11 +284,13 @@ class Paint extends AppBase {
 
         if (this.tool === 'bucket') {
             this.floodFill(x, y, this.hexToRgba(this.color));
+            EventBus.emit(PaintEvents.FILL_APPLIED, { x, y, color: this.color });
         } else {
             this.painting = true;
             this.lastX = x;
             this.lastY = y;
-            this.draw(x, y); 
+            this.draw(x, y);
+            EventBus.emit(PaintEvents.STROKE_STARTED, { x, y, tool: this.tool, color: this.color, brushSize: this.brushSize });
         }
     }
 
@@ -313,6 +330,9 @@ class Paint extends AppBase {
     }
 
     stopPaint() {
+        if (this.painting) {
+            EventBus.emit(PaintEvents.STROKE_ENDED, { tool: this.tool, endX: this.lastX, endY: this.lastY });
+        }
         this.painting = false;
         this.ctx.beginPath();
     }
@@ -384,6 +404,8 @@ class Paint extends AppBase {
         const canvas = this.getElement('#paintCanvas');
         this.ctx.fillStyle = '#ffffff';
         this.ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        EventBus.emit(PaintEvents.CANVAS_CLEARED, { width: canvas.width, height: canvas.height });
     }
 
     loadImageFromFile(filePath) {
@@ -407,6 +429,7 @@ class Paint extends AppBase {
                 this.ctx.fillStyle = '#ffffff';
                 this.ctx.fillRect(0, 0, canvas.width, canvas.height);
                 this.ctx.drawImage(img, 0, 0);
+                EventBus.emit(PaintEvents.OPENED, { filePath: filePath.join ? filePath.join('/') : filePath });
             };
             img.onerror = () => {
                 alert('Failed to load image - the file may be corrupted');
@@ -461,6 +484,7 @@ class Paint extends AppBase {
                 const dataURL = canvas.toDataURL('image/png');
                 FileSystemManager.writeFile(currentFile, dataURL, 'png');
                 this.alert('💾 Image saved!');
+                EventBus.emit(PaintEvents.SAVED, { filePath: currentFile.join('/'), isNew: false });
             } catch (e) {
                 alert(`Error saving image: ${e.message}`);
             }
@@ -501,6 +525,7 @@ class Paint extends AppBase {
             this.setInstanceState('fileName', fileName);
             this.updateWindowTitle();
             this.alert('💾 Image saved to ' + parsedPath.join('/'));
+            EventBus.emit(PaintEvents.SAVED, { filePath: parsedPath.join('/'), isNew: true });
         } catch (e) {
             alert(`Error saving image: ${e.message}`);
         }
