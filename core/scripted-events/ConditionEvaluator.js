@@ -207,7 +207,8 @@ const conditionHandlers = {
         try {
             const exists = FileSystemManager.exists(path);
             return exists;
-        } catch {
+        } catch (error) {
+            console.warn(`[ConditionEvaluator] fileExists check failed for path "${path}":`, error.message);
             return false;
         }
     },
@@ -226,7 +227,8 @@ const conditionHandlers = {
                 return re.test(content);
             }
             return content.includes(pattern);
-        } catch {
+        } catch (error) {
+            console.warn(`[ConditionEvaluator] fileContains check failed for path "${path}":`, error.message);
             return false;
         }
     },
@@ -239,7 +241,8 @@ const conditionHandlers = {
         try {
             const actual = FileSystemManager.readFile(path);
             return actual === content;
-        } catch {
+        } catch (error) {
+            console.warn(`[ConditionEvaluator] fileEquals check failed for path "${path}":`, error.message);
             return false;
         }
     },

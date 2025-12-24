@@ -105,8 +105,16 @@ export class ScenarioLoader {
      * @returns {Promise<Object|null>} - Parsed scenario or null
      */
     async loadFromUrl(url, options = {}) {
+        const { timeout = 30000 } = options; // Default 30 second timeout
+
         try {
-            const response = await fetch(url);
+            // Create abort controller for timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+            const response = await fetch(url, { signal: controller.signal });
+            clearTimeout(timeoutId);
+
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
@@ -114,7 +122,11 @@ export class ScenarioLoader {
             const jsonString = await response.text();
             return this.loadFromString(jsonString, { ...options, cacheKey: url });
         } catch (error) {
-            this.lastErrors = [{ type: 'network', message: error.message }];
+            const errorMessage = error.name === 'AbortError'
+                ? `Request timed out after ${timeout}ms`
+                : error.message;
+            this.lastErrors = [{ type: 'network', message: errorMessage }];
+            console.error(`[ScenarioLoader] Failed to load from URL "${url}":`, errorMessage);
             return null;
         }
     }
@@ -502,14 +514,14 @@ export class ScenarioLoader {
                                 file: file,
                                 path: `/scenarios/${file}`
                             });
-                        } catch {
-                            // Skip invalid JSON
+                        } catch (error) {
+                            console.warn(`[ScenarioLoader] Invalid JSON in scenario file "${file}":`, error.message);
                         }
                     }
                 }
             }
-        } catch {
-            // Directory doesn't exist yet
+        } catch (error) {
+            console.debug('[ScenarioLoader] Scenarios directory not accessible:', error.message);
         }
 
         return scenarios;
