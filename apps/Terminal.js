@@ -9,6 +9,7 @@ import EventBus from '../core/EventBus.js';
 import StateManager from '../core/StateManager.js';
 import FileSystemManager from '../core/FileSystemManager.js';
 import { PATHS } from '../core/Constants.js';
+import { TerminalEvents } from '../core/scripted-events/SemanticEvents.js';
 
 class Terminal extends AppBase {
     constructor() {
@@ -143,6 +144,9 @@ class Terminal extends AppBase {
         });
 
         this.runBootSequence();
+
+        // Emit terminal opened event
+        EventBus.emit(TerminalEvents.OPENED, { path: this.currentPath.join('\\') });
     }
 
     runBootSequence() {
@@ -218,12 +222,15 @@ class Terminal extends AppBase {
             } else if (e.key === 'ArrowUp') {
                 e.preventDefault();
                 this.navigateHistory(-1, input);
+                EventBus.emit(TerminalEvents.HISTORY_NAVIGATED, { direction: 'up' });
             } else if (e.key === 'ArrowDown') {
                 e.preventDefault();
                 this.navigateHistory(1, input);
+                EventBus.emit(TerminalEvents.HISTORY_NAVIGATED, { direction: 'down' });
             } else if (e.key === 'Tab') {
                 e.preventDefault();
                 this.tabComplete(input);
+                EventBus.emit(TerminalEvents.TAB_COMPLETED, { input: input.value });
             }
         });
     }
@@ -376,12 +383,39 @@ class Terminal extends AppBase {
         if (commands[cmd]) {
             const result = commands[cmd]();
             if (result) this.print(result);
+
+            // Emit command event
+            EventBus.emit(TerminalEvents.COMMAND, { command: cmd, args, path: this.currentPath.join('\\') });
+
+            // Emit specific command events
+            const commandEvents = {
+                'cd': TerminalEvents.CD,
+                'chdir': TerminalEvents.CD,
+                'dir': TerminalEvents.LS,
+                'ls': TerminalEvents.LS,
+                'type': TerminalEvents.CAT,
+                'cat': TerminalEvents.CAT,
+                'mkdir': TerminalEvents.MKDIR,
+                'md': TerminalEvents.MKDIR,
+                'del': TerminalEvents.RM,
+                'rm': TerminalEvents.RM,
+                'echo': TerminalEvents.ECHO,
+                'cls': TerminalEvents.CLEAR,
+                'clear': TerminalEvents.CLEAR,
+                'help': TerminalEvents.HELP
+            };
+            if (commandEvents[cmd]) {
+                EventBus.emit(commandEvents[cmd], { args, path: this.currentPath.join('\\') });
+            }
+
+            EventBus.emit(TerminalEvents.COMMAND_SUCCESS, { command: cmd });
         } else {
             // Try to open the command as a file in the current directory
             const fileResult = this.tryOpenFile(trimmed);
             if (!fileResult) {
                 this.print(`'${cmd}' is not recognized as an internal or external command,`);
                 this.print('operable program or batch file.');
+                EventBus.emit(TerminalEvents.COMMAND_FAILED, { command: cmd });
             }
         }
     }

@@ -5,6 +5,8 @@
 
 import AppBase from './AppBase.js';
 import StateManager from '../core/StateManager.js';
+import EventBus from '../core/EventBus.js';
+import { AsteroidsEvents, GameEvents } from '../core/scripted-events/SemanticEvents.js';
 
 class Asteroids extends AppBase {
     constructor() {
@@ -143,6 +145,10 @@ class Asteroids extends AppBase {
         this.ship = this.newShip();
         this.newLevel();
         this.updateHUD();
+
+        // Emit game started events
+        EventBus.emit(AsteroidsEvents.STARTED, { lives: this.lives, level: this.level });
+        EventBus.emit(GameEvents.STARTED, { appId: 'asteroids' });
     }
 
     newLevel() {
@@ -152,6 +158,10 @@ class Asteroids extends AppBase {
         this.createAsteroidBelt();
         this.ufoSpawnTimer = this.UFO_SPAWN_INTERVAL * this.FPS;
         this.updateHUD();
+
+        if (this.level > 1) {
+            EventBus.emit(AsteroidsEvents.LEVEL_COMPLETE, { level: this.level - 1, score: this.score });
+        }
     }
 
     newShip() {
@@ -271,6 +281,8 @@ class Asteroids extends AppBase {
         if (this.activePowerup !== 'rapid') {
             this.ship.canShoot = false;
         }
+
+        EventBus.emit(AsteroidsEvents.SHIP_FIRED, { x: this.ship.x, y: this.ship.y, powerup: this.activePowerup });
     }
 
     update() {
@@ -667,9 +679,11 @@ class Asteroids extends AppBase {
         this.createExplosion(x, y, 15, "150,150,150");
 
         // Split asteroid in two if necessary
-        if (r > Math.ceil(this.ROIDS_SIZE / 8)) {
+        const didSplit = r > Math.ceil(this.ROIDS_SIZE / 8);
+        if (didSplit) {
             this.roids.push(this.newAsteroid(x, y, Math.ceil(r / 2)));
             this.roids.push(this.newAsteroid(x, y, Math.ceil(r / 2)));
+            EventBus.emit(AsteroidsEvents.ASTEROID_SPLIT, { x, y, size: r });
         }
 
         // Remove the original
@@ -693,6 +707,8 @@ class Asteroids extends AppBase {
 
         this.updateHUD();
         this.playSound('click');
+
+        EventBus.emit(AsteroidsEvents.ASTEROID_DESTROYED, { x, y, size: r, score: this.score, combo: this.combo });
     }
 
     destroyUFO(index) {
@@ -707,6 +723,8 @@ class Asteroids extends AppBase {
 
         this.updateHUD();
         this.playSound('error');
+
+        EventBus.emit(AsteroidsEvents.UFO_DESTROYED, { x, y, score: this.score });
     }
 
     explodeShip() {
@@ -718,6 +736,8 @@ class Asteroids extends AppBase {
         this.powerupTimeLeft = 0;
 
         this.updateHUD();
+
+        EventBus.emit(AsteroidsEvents.SHIP_DESTROYED, { lives: this.lives, score: this.score });
 
         if (this.lives === 0) {
             this.ship.dead = true;
@@ -731,6 +751,9 @@ class Asteroids extends AppBase {
                 StateManager.setState('asteroids_highscore', this.scoreHigh);
                 this.text = "NEW HIGH SCORE!";
             }
+
+            EventBus.emit(AsteroidsEvents.LOSE, { score: this.score, level: this.level, highScore: this.scoreHigh });
+            EventBus.emit(GameEvents.LOSE, { appId: 'asteroids', score: this.score });
 
             setTimeout(() => this.newGame(), 3000);
         } else {
@@ -780,6 +803,7 @@ class Asteroids extends AppBase {
         if (type === 'extralife') {
             this.lives++;
             this.updateHUD();
+            EventBus.emit(AsteroidsEvents.EXTRA_LIFE, { lives: this.lives });
         } else {
             this.activePowerup = type;
             this.powerupTimeLeft = this.POWERUP_DURATION * this.FPS;
@@ -803,6 +827,8 @@ class Asteroids extends AppBase {
             r: this.UFO_SIZE,
             shootTimer: this.UFO_SHOOT_INTERVAL * this.FPS
         });
+
+        EventBus.emit(AsteroidsEvents.UFO_SPAWNED, { x: side, y, level: this.level });
     }
 
     getPowerupColor() {
