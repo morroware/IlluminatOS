@@ -9,6 +9,7 @@ import AppRegistry from './AppRegistry.js';
 import FileSystemManager from '../core/FileSystemManager.js';
 import EventBus from '../core/EventBus.js';
 import { PATHS } from '../core/Constants.js';
+import { ExplorerEvents } from '../core/scripted-events/SemanticEvents.js';
 
 class MyComputer extends AppBase {
     constructor() {
@@ -316,6 +317,12 @@ class MyComputer extends AppBase {
 
         // Update status
         this.updateStatus();
+
+        // Emit opened event
+        EventBus.emit(ExplorerEvents.OPENED, {
+            appId: 'mycomputer',
+            initialPath: initialPath.length > 0 ? initialPath.join('\\') : 'My Computer'
+        });
     }
 
     /**
@@ -404,6 +411,13 @@ class MyComputer extends AppBase {
             try {
                 FileSystemManager.moveItem(filePath, currentPath);
                 this.showDropFeedback(`Moved "${fileName}" to ${currentPath[currentPath.length - 1] || 'current folder'}`, 'success');
+
+                // Emit file moved event
+                EventBus.emit(ExplorerEvents.FILE_MOVED, {
+                    fileName: fileName,
+                    sourcePath: filePath.join('\\'),
+                    destinationPath: currentPath.join('\\')
+                });
             } catch (err) {
                 console.error('Failed to move file:', err.message);
                 this.showDropFeedback(`Failed to move file: ${err.message}`, 'error');
@@ -506,6 +520,14 @@ class MyComputer extends AppBase {
 
             FileSystemManager.saveFileSystem();
             console.log(`Created shortcut ${fileName} in ${targetPath.join('/')}`);
+
+            // Emit file created event
+            EventBus.emit(ExplorerEvents.FILE_CREATED, {
+                fileName: fileName,
+                filePath: filePath.join('\\'),
+                type: 'shortcut',
+                shortcutTarget: target
+            });
         } catch (err) {
             console.error('Failed to create shortcut file:', err);
         }
@@ -798,6 +820,12 @@ class MyComputer extends AppBase {
                 const newMode = currentMode === 'grid' ? 'list' : 'grid';
                 this.setInstanceState('viewMode', newMode);
                 this.refreshView();
+
+                // Emit view changed event
+                EventBus.emit(ExplorerEvents.VIEW_CHANGED, {
+                    viewMode: newMode,
+                    previousMode: currentMode
+                });
             });
         }
 
@@ -956,6 +984,16 @@ class MyComputer extends AppBase {
             this.addHandler(item, 'click', (e) => {
                 allItems.forEach(i => i.classList.remove('selected'));
                 e.currentTarget.classList.add('selected');
+
+                // Emit file selected event
+                const itemName = e.currentTarget.dataset.name;
+                const itemType = e.currentTarget.dataset.type;
+                const currentPath = this.getInstanceState('currentPath') || [];
+                EventBus.emit(ExplorerEvents.FILE_SELECTED, {
+                    name: itemName,
+                    type: itemType,
+                    path: currentPath.length > 0 ? currentPath.join('\\') : 'My Computer'
+                });
             });
         });
 
@@ -1062,6 +1100,13 @@ class MyComputer extends AppBase {
             try {
                 FileSystemManager.moveItem(filePath, targetPath);
                 console.log(`Moved ${fileName} to ${targetPath.join('/')}`);
+
+                // Emit file moved event
+                EventBus.emit(ExplorerEvents.FILE_MOVED, {
+                    fileName: fileName,
+                    sourcePath: filePath.join('\\'),
+                    destinationPath: targetPath.join('\\')
+                });
             } catch (err) {
                 console.error('Failed to move file:', err.message);
             }
@@ -1114,6 +1159,13 @@ class MyComputer extends AppBase {
             try {
                 FileSystemManager.moveItem(filePath, targetPath);
                 console.log(`Moved ${fileName} to ${driveLetter}`);
+
+                // Emit file moved event
+                EventBus.emit(ExplorerEvents.FILE_MOVED, {
+                    fileName: fileName,
+                    sourcePath: filePath.join('\\'),
+                    destinationPath: driveLetter
+                });
             } catch (err) {
                 console.error('Failed to move file:', err.message);
             }
@@ -1179,6 +1231,14 @@ class MyComputer extends AppBase {
             try {
                 FileSystemManager.moveItem(filePath, targetPath);
                 console.log(`Moved ${fileName} to ${folderName}`);
+
+                // Emit file moved event
+                EventBus.emit(ExplorerEvents.FILE_MOVED, {
+                    fileName: fileName,
+                    sourcePath: filePath.join('\\'),
+                    destinationPath: targetPath.join('\\'),
+                    systemFolder: folderName
+                });
             } catch (err) {
                 console.error('Failed to move file:', err.message);
             }
@@ -1193,6 +1253,14 @@ class MyComputer extends AppBase {
 
         try {
             const fileInfo = FileSystemManager.getInfo(filePath);
+
+            // Emit file opened event
+            EventBus.emit(ExplorerEvents.FILE_OPENED, {
+                fileName: fileName,
+                filePath: filePath.join('\\'),
+                extension: fileInfo.extension,
+                size: fileInfo.size
+            });
 
             // Determine which app to use based on file extension
             if (fileInfo.extension === 'txt' || fileInfo.extension === 'md' || fileInfo.extension === 'log') {
@@ -1221,16 +1289,30 @@ class MyComputer extends AppBase {
         // Navigate to new path
         this.setInstanceState('currentPath', path);
         this.refreshView();
+
+        // Emit navigated event
+        EventBus.emit(ExplorerEvents.NAVIGATED, {
+            path: path.join('\\') || 'My Computer',
+            previousPath: currentPath.join('\\') || 'My Computer',
+            depth: path.length
+        });
     }
 
     navigateBack() {
         const history = this.getInstanceState('history') || [];
         if (history.length === 0) return;
 
+        const currentPath = this.getInstanceState('currentPath') || [];
         const previousPath = history.pop();
         this.setInstanceState('history', history);
         this.setInstanceState('currentPath', previousPath);
         this.refreshView();
+
+        // Emit back event
+        EventBus.emit(ExplorerEvents.BACK, {
+            path: previousPath.join('\\') || 'My Computer',
+            previousPath: currentPath.join('\\') || 'My Computer'
+        });
     }
 
     navigateUp() {
@@ -1246,6 +1328,12 @@ class MyComputer extends AppBase {
         const newPath = currentPath.slice(0, -1);
         this.setInstanceState('currentPath', newPath);
         this.refreshView();
+
+        // Emit up event
+        EventBus.emit(ExplorerEvents.UP, {
+            path: newPath.join('\\') || 'My Computer',
+            previousPath: currentPath.join('\\')
+        });
     }
 
     refreshView() {
