@@ -135,11 +135,77 @@ export class TriggerEngine {
     }
 
     /**
+     * Validate a trigger definition before registration
+     * @param {Object} trigger - Trigger to validate
+     * @returns {Object} - { valid: boolean, errors: string[] }
+     */
+    validateTrigger(trigger) {
+        const errors = [];
+
+        // Check for event specification
+        if (!trigger.event && (!trigger.events || trigger.events.length === 0)) {
+            errors.push('Trigger must specify at least one event (event or events array)');
+        }
+
+        // Validate event patterns
+        const eventPatterns = trigger.events || (trigger.event ? [trigger.event] : []);
+        for (const pattern of eventPatterns) {
+            if (typeof pattern !== 'string') {
+                errors.push(`Event pattern must be a string, got ${typeof pattern}`);
+            } else if (pattern.startsWith('regex:')) {
+                // Validate regex pattern
+                try {
+                    new RegExp(pattern.slice(6));
+                } catch (e) {
+                    errors.push(`Invalid regex pattern "${pattern}": ${e.message}`);
+                }
+            }
+        }
+
+        // Validate actions
+        if (trigger.actions) {
+            const actions = Array.isArray(trigger.actions) ? trigger.actions : [trigger.actions];
+            for (let i = 0; i < actions.length; i++) {
+                const action = actions[i];
+                if (action !== null && action !== undefined) {
+                    if (typeof action !== 'object' && typeof action !== 'string') {
+                        errors.push(`Action at index ${i} must be an object or string, got ${typeof action}`);
+                    } else if (typeof action === 'object' && !action.type) {
+                        errors.push(`Action at index ${i} is missing required "type" field`);
+                    }
+                }
+            }
+        }
+
+        // Validate debounce
+        if (trigger.debounce !== undefined && (typeof trigger.debounce !== 'number' || trigger.debounce < 0)) {
+            errors.push('Debounce must be a non-negative number');
+        }
+
+        // Validate priority
+        if (trigger.priority !== undefined && typeof trigger.priority !== 'number') {
+            errors.push('Priority must be a number');
+        }
+
+        return {
+            valid: errors.length === 0,
+            errors
+        };
+    }
+
+    /**
      * Register a trigger
      * @param {Object} trigger - Trigger definition
-     * @returns {string} - Trigger ID
+     * @returns {string|null} - Trigger ID or null if validation fails
      */
     registerTrigger(trigger) {
+        // Validate trigger before registration
+        const validation = this.validateTrigger(trigger);
+        if (!validation.valid) {
+            console.warn('[TriggerEngine] Trigger validation failed:', validation.errors);
+            // Still register but log warnings - allows backward compatibility
+        }
+
         const {
             id = `trigger-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             event,
@@ -158,7 +224,7 @@ export class TriggerEngine {
             event,
             events: events || (event ? [event] : []),
             conditions,
-            actions: Array.isArray(actions) ? actions : [actions],
+            actions: Array.isArray(actions) ? actions : (actions ? [actions] : []),
             once,
             priority,
             debounce,
@@ -524,7 +590,8 @@ registerMatcher('regex', (eventName, pattern) => {
     try {
         const regex = new RegExp(pattern);
         return regex.test(eventName);
-    } catch {
+    } catch (error) {
+        console.warn(`[TriggerEngine] Invalid regex pattern "${pattern}":`, error.message);
         return false;
     }
 });

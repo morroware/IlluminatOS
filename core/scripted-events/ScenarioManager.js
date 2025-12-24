@@ -561,20 +561,35 @@ class ScenarioManagerFeature extends FeatureBase {
      * Set scenario state value
      * @param {string} path - State path
      * @param {*} value - Value to set
+     * @returns {boolean} - Whether the set was successful
      */
     setState(path, value) {
+        if (!path || typeof path !== 'string') {
+            console.warn('[ScenarioManager] setState: Invalid path provided');
+            return false;
+        }
+
         const parts = path.split('.');
         let current = this.state;
 
         for (let i = 0; i < parts.length - 1; i++) {
-            if (!(parts[i] in current)) {
-                current[parts[i]] = {};
+            const part = parts[i];
+
+            if (!(part in current)) {
+                // Create new nested object
+                current[part] = {};
+            } else if (current[part] === null || typeof current[part] !== 'object') {
+                // Existing value is not an object, cannot traverse further
+                console.warn(`[ScenarioManager] setState: Cannot set "${path}" - "${parts.slice(0, i + 1).join('.')}" is not an object (got ${typeof current[part]})`);
+                return false;
             }
-            current = current[parts[i]];
+
+            current = current[part];
         }
 
-        const oldValue = current[parts[parts.length - 1]];
-        current[parts[parts.length - 1]] = value;
+        const finalKey = parts[parts.length - 1];
+        const oldValue = current[finalKey];
+        current[finalKey] = value;
 
         // Emit state changed event
         emitScenarioEvent(ScenarioEvents.STATE_CHANGED, {
@@ -583,6 +598,8 @@ class ScenarioManagerFeature extends FeatureBase {
             oldValue,
             scenarioId: this.scenario?.id
         }, 'ScenarioManager');
+
+        return true;
     }
 
     /**
