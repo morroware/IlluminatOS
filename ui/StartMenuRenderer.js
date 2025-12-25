@@ -683,28 +683,17 @@ class StartMenuRendererClass {
      * @param {HTMLElement} submenu - The submenu element
      */
     positionSubmenu(trigger, submenu) {
-        // Get trigger position in viewport
-        const triggerRect = trigger.getBoundingClientRect();
-
         // Viewport dimensions
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
         const taskbarHeight = 50;
+        const maxBottom = viewportHeight - taskbarHeight;
 
         // Get trigger name for debugging
         const triggerName = trigger.querySelector('span:not(.submenu-arrow):not(.start-menu-icon)')?.textContent || 'unknown';
 
         // Reset any previous positioning constraints
         submenu.style.maxHeight = '';
-
-        // Calculate submenu dimensions by temporarily showing it
-        submenu.style.visibility = 'hidden';
-        submenu.style.display = 'block';
-        submenu.style.left = '0px';
-        submenu.style.top = '0px';
-
-        const submenuWidth = submenu.offsetWidth;
-        const submenuHeight = submenu.offsetHeight;
 
         // Determine horizontal position based on nesting level
         let left, top;
@@ -714,23 +703,39 @@ class StartMenuRendererClass {
 
         if (parentSubmenu) {
             // NESTED submenu - position to the right of the parent submenu
+            // Get parent submenu's position (it should already be positioned)
             const parentRect = parentSubmenu.getBoundingClientRect();
             left = parentRect.right;
-            top = triggerRect.top;
-            console.log(`[Submenu] "${triggerName}" is NESTED. Parent right: ${parentRect.right}, trigger top: ${triggerRect.top}`);
+
+            // For vertical position, use trigger's offset within parent + parent's top
+            // This avoids issues with measuring while submenu is at wrong position
+            const triggerOffsetInParent = trigger.offsetTop;
+            top = parentRect.top + triggerOffsetInParent;
+
+            console.log(`[Submenu] "${triggerName}" is NESTED. Parent: (${parentRect.left}, ${parentRect.top}) to (${parentRect.right}, ${parentRect.bottom}), triggerOffset: ${triggerOffsetInParent}, calculated top: ${top}`);
         } else {
             // FIRST-LEVEL submenu - position to the right of the start menu
             const startMenu = document.getElementById('startMenu');
+            const triggerRect = trigger.getBoundingClientRect();
+
             if (startMenu) {
                 const startMenuRect = startMenu.getBoundingClientRect();
                 left = startMenuRect.right;
                 console.log(`[Submenu] "${triggerName}" is FIRST-LEVEL. StartMenu right: ${startMenuRect.right}, trigger top: ${triggerRect.top}`);
             } else {
                 left = triggerRect.right;
-                console.log(`[Submenu] "${triggerName}" - no startMenu found, using trigger right: ${triggerRect.right}`);
             }
             top = triggerRect.top;
         }
+
+        // Now measure submenu dimensions (show it at calculated position first)
+        submenu.style.left = `${Math.round(left)}px`;
+        submenu.style.top = `${Math.round(top)}px`;
+        submenu.style.visibility = 'hidden';
+        submenu.style.display = 'block';
+
+        const submenuWidth = submenu.offsetWidth;
+        const submenuHeight = submenu.offsetHeight;
 
         // Check horizontal overflow - if goes off right edge, flip to left side
         if (left + submenuWidth > viewportWidth - 4) {
@@ -743,8 +748,6 @@ class StartMenuRendererClass {
                 if (startMenu) {
                     const startMenuRect = startMenu.getBoundingClientRect();
                     left = startMenuRect.left - submenuWidth;
-                } else {
-                    left = triggerRect.left - submenuWidth;
                 }
             }
             if (left < 4) {
@@ -753,7 +756,6 @@ class StartMenuRendererClass {
         }
 
         // Check vertical overflow - if goes below taskbar, shift up
-        const maxBottom = viewportHeight - taskbarHeight;
         if (top + submenuHeight > maxBottom) {
             console.log(`[Submenu] "${triggerName}" overflows bottom (${top + submenuHeight} > ${maxBottom}), shifting up`);
             top = maxBottom - submenuHeight;
