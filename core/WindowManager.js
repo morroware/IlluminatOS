@@ -4,8 +4,9 @@
  * All window operations go through this manager
  */
 
-import EventBus, { Events } from './EventBus.js';
+import EventBus from './EventBus.js';
 import StateManager from './StateManager.js';
+import { WindowEvents } from './scripted-events/SemanticEvents.js';
 
 class WindowManagerClass {
     constructor() {
@@ -53,7 +54,7 @@ class WindowManagerClass {
         if (!this.resizeRAF) {
             this.resizeRAF = requestAnimationFrame(() => {
                 if (this.pendingResizeEvent) {
-                    EventBus.emit(Events.WINDOW_RESIZE, this.pendingResizeEvent);
+                    EventBus.emit(WindowEvents.RESIZED, this.pendingResizeEvent);
                     this.pendingResizeEvent = null;
                 }
                 this.resizeRAF = null;
@@ -160,7 +161,8 @@ class WindowManagerClass {
         });
 
         // Emit open event
-        EventBus.emit(Events.WINDOW_OPEN, { id, title });
+        EventBus.emit(WindowEvents.CREATED, { id, title, width, height });
+        EventBus.emit(WindowEvents.OPENED, { id, title });
 
         // Check achievement
         if (StateManager.getState('windows').length >= 10) {
@@ -270,6 +272,9 @@ class WindowManagerClass {
         const windowEl = document.getElementById(`window-${id}`);
         if (!windowEl) return;
 
+        // Get previously active window to emit blur event
+        const previousActiveId = StateManager.getState('ui.activeWindow');
+
         // Remove active from all windows
         document.querySelectorAll('.window').forEach(w => {
             w.classList.remove('active');
@@ -282,8 +287,13 @@ class WindowManagerClass {
         // Update state
         StateManager.focusWindow(id);
 
+        // Emit blur event for previous window
+        if (previousActiveId && previousActiveId !== id) {
+            EventBus.emit(WindowEvents.BLURRED, { id: previousActiveId });
+        }
+
         // Emit focus event
-        EventBus.emit(Events.WINDOW_FOCUS, { id });
+        EventBus.emit(WindowEvents.FOCUSED, { id });
     }
 
     /**
@@ -300,7 +310,7 @@ class WindowManagerClass {
             windowEl.classList.remove('active', 'minimizing');
             windowEl.classList.add('minimized'); // Hide the window
             StateManager.updateWindow(id, { minimized: true });
-            EventBus.emit(Events.WINDOW_MINIMIZE, { id });
+            EventBus.emit(WindowEvents.MINIMIZED, { id });
         }, 200);
 
         EventBus.emit(Events.SOUND_PLAY, { type: 'click' });
@@ -324,7 +334,7 @@ class WindowManagerClass {
         StateManager.updateWindow(id, { minimized: false });
         this.focus(id);
 
-        EventBus.emit(Events.WINDOW_RESTORE, { id });
+        EventBus.emit(WindowEvents.RESTORED, { id });
     }
 
     /**
@@ -378,7 +388,13 @@ class WindowManagerClass {
         }
 
         StateManager.updateWindow(id, { maximized: !isMaximized });
-        EventBus.emit(Events.WINDOW_MAXIMIZE, { id, maximized: !isMaximized });
+
+        // Emit appropriate event based on new state
+        if (!isMaximized) {
+            EventBus.emit(WindowEvents.MAXIMIZED, { id });
+        } else {
+            EventBus.emit(WindowEvents.RESTORED, { id });
+        }
     }
 
     /**
@@ -414,7 +430,7 @@ class WindowManagerClass {
             this.preMaximizeState.delete(id);
 
             // Emit close event
-            EventBus.emit(Events.WINDOW_CLOSE, { id });
+            EventBus.emit(WindowEvents.CLOSED, { id });
         }, 200);
     }
 
@@ -471,7 +487,7 @@ class WindowManagerClass {
         document.addEventListener('mousemove', this.boundDragMove);
         document.addEventListener('mouseup', this.boundDragEnd);
 
-        EventBus.emit(Events.DRAG_START, { type: 'window', id });
+        EventBus.emit(WindowEvents.DRAG_STARTED, { id });
     }
 
     /**
@@ -589,7 +605,8 @@ class WindowManagerClass {
             document.body.classList.remove('window-dragging');
 
             this.hideSnapPreview();
-            EventBus.emit(Events.DRAG_END, { type: 'window', id });
+            EventBus.emit(WindowEvents.DRAG_ENDED, { id });
+            EventBus.emit(WindowEvents.MOVED, { id, left: element.style.left, top: element.style.top });
         }
 
         this.draggedWindow = null;
@@ -818,7 +835,7 @@ class WindowManagerClass {
             document.body.classList.remove(`window-resizing-${this.resizeDirection}`);
 
             // Emit final resize event
-            EventBus.emit(Events.WINDOW_RESIZE, {
+            EventBus.emit(WindowEvents.RESIZED, {
                 id,
                 width: rect.width,
                 height: rect.height,
@@ -944,7 +961,7 @@ class WindowManagerClass {
             document.body.classList.remove('window-resizing');
             document.body.classList.remove(`window-resizing-${this.resizeDirection}`);
 
-            EventBus.emit(Events.WINDOW_RESIZE, {
+            EventBus.emit(WindowEvents.RESIZED, {
                 id,
                 width: rect.width,
                 height: rect.height,
