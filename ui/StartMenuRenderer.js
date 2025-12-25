@@ -17,11 +17,19 @@ class StartMenuRendererClass {
         this.focusedIndex = -1;
         this.focusableItems = [];
 
+        // Track the currently open submenu chain for proper cleanup
+        this.openSubmenus = new Set();
+
+        // AbortController for submenu event cleanup
+        this.submenuAbortController = null;
+
         // Bound handlers for cleanup
         this.boundHandleOutsideClick = this.handleOutsideClick.bind(this);
         this.boundHandleStartClick = this.handleStartClick.bind(this);
         this.boundHandleMenuClick = this.handleMenuClick.bind(this);
         this.boundHandleKeydown = this.handleKeydown.bind(this);
+        this.boundHandleSubmenuMouseover = this.handleSubmenuMouseover.bind(this);
+        this.boundHandleSubmenuMouseout = this.handleSubmenuMouseout.bind(this);
     }
 
     initialize() {
@@ -238,6 +246,7 @@ class StartMenuRendererClass {
                 // Position and show the submenu
                 this.positionSubmenu(item, submenu);
                 submenu.classList.add('submenu-open');
+                this.openSubmenus.add(submenu);
 
                 // Update focusable items to submenu items
                 this.focusableItems = Array.from(submenu.querySelectorAll('.start-menu-item'));
@@ -321,6 +330,13 @@ class StartMenuRendererClass {
         if (this.element) {
             this.element.removeEventListener('click', this.boundHandleMenuClick);
         }
+
+        // Clean up submenu event listeners
+        if (this.submenuAbortController) {
+            this.submenuAbortController.abort();
+            this.submenuAbortController = null;
+        }
+        this.openSubmenus.clear();
 
         this.initialized = false;
         console.log('[StartMenuRenderer] Destroyed');
@@ -583,88 +599,123 @@ class StartMenuRendererClass {
 
     /**
      * Attach hover handlers to show/hide and position submenus
-     * Uses JavaScript visibility control instead of CSS :hover for proper fixed positioning
+     * Uses event delegation for proper cleanup and consistent behavior
      */
     attachSubmenuPositioning() {
-        const submenuTriggers = this.element.querySelectorAll('.submenu-trigger');
+        // Abort previous event listeners if they exist
+        if (this.submenuAbortController) {
+            this.submenuAbortController.abort();
+        }
+        this.submenuAbortController = new AbortController();
+        const signal = this.submenuAbortController.signal;
 
-        submenuTriggers.forEach(trigger => {
-            const submenu = trigger.querySelector(':scope > .start-submenu');
-            if (!submenu) return;
+        // Use event delegation on the start menu element
+        this.element.addEventListener('mouseover', this.boundHandleSubmenuMouseover, { signal });
+        this.element.addEventListener('mouseout', this.boundHandleSubmenuMouseout, { signal });
+    }
 
-            // Show submenu when entering trigger
-            trigger.addEventListener('mouseenter', (e) => {
-                // Don't process if entering from a child element (prevents re-triggering)
-                if (e.relatedTarget && trigger.contains(e.relatedTarget)) return;
+    /**
+     * Handle mouseover events for submenu triggers using event delegation
+     */
+    handleSubmenuMouseover(e) {
+        const trigger = e.target.closest('.submenu-trigger');
+        if (!trigger) return;
 
-                // Close sibling submenus (other submenus at the same level)
-                const parent = trigger.parentElement;
-                if (parent) {
-                    parent.querySelectorAll(':scope > .submenu-trigger > .start-submenu.submenu-open').forEach(sibling => {
-                        if (sibling !== submenu) {
-                            sibling.classList.remove('submenu-open');
-                            // Also close nested submenus of the sibling
-                            sibling.querySelectorAll('.start-submenu.submenu-open').forEach(nested => {
-                                nested.classList.remove('submenu-open');
-                            });
-                        }
-                    });
-                }
+        // Ignore if this trigger doesn't belong to our start menu
+        if (!this.element.contains(trigger)) return;
 
-                // Position and show this submenu
-                this.positionSubmenu(trigger, submenu);
-                submenu.classList.add('submenu-open');
-            });
+        const submenu = trigger.querySelector(':scope > .start-submenu');
+        if (!submenu) return;
 
-            // Hide submenu when leaving trigger, but only if not entering the submenu
-            trigger.addEventListener('mouseleave', (e) => {
-                // Check if we're moving into the submenu (or any of its descendants)
-                const relatedTarget = e.relatedTarget;
-                if (relatedTarget && (submenu.contains(relatedTarget) || submenu === relatedTarget)) {
-                    // Moving into the submenu, keep it open
-                    return;
-                }
+        // If this submenu is already open, nothing to do
+        if (submenu.classList.contains('submenu-open')) return;
 
-                // Check if we're moving to another part of this trigger
-                if (relatedTarget && trigger.contains(relatedTarget)) {
-                    return;
-                }
+        // Close all submenus that are not ancestors of this trigger
+        this.closeNonAncestorSubmenus(trigger);
 
-                // Close this submenu and its nested submenus
+        // Position and show this submenu
+        this.positionSubmenu(trigger, submenu);
+        submenu.classList.add('submenu-open');
+        this.openSubmenus.add(submenu);
+    }
+
+    /**
+     * Handle mouseout events for submenus using event delegation
+     */
+    handleSubmenuMouseout(e) {
+        const relatedTarget = e.relatedTarget;
+
+        // Mouse left the window entirely
+        if (!relatedTarget) {
+            this.closeAllSubmenus();
+            return;
+        }
+
+        // Mouse moved outside the start menu
+        if (!this.element.contains(relatedTarget)) {
+            this.closeAllSubmenus();
+            return;
+        }
+
+        // Mouse is still in the start menu - close only submenus that don't contain the target
+        // This allows moving between sibling submenus to work correctly
+        this.closeSubmenusNotContaining(relatedTarget);
+    }
+
+    /**
+     * Close all submenus except ancestors of the given trigger
+     */
+    closeNonAncestorSubmenus(currentTrigger) {
+        // Build the ancestor chain for the current trigger
+        const ancestorSubmenus = new Set();
+        let parent = currentTrigger.parentElement;
+        while (parent && this.element.contains(parent)) {
+            if (parent.classList.contains('start-submenu')) {
+                ancestorSubmenus.add(parent);
+            }
+            parent = parent.parentElement;
+        }
+
+        // Close submenus that are not ancestors
+        this.openSubmenus.forEach(submenu => {
+            if (!ancestorSubmenus.has(submenu)) {
                 submenu.classList.remove('submenu-open');
+                this.openSubmenus.delete(submenu);
+                // Also close any nested submenus
                 submenu.querySelectorAll('.start-submenu.submenu-open').forEach(nested => {
                     nested.classList.remove('submenu-open');
+                    this.openSubmenus.delete(nested);
                 });
+            }
+        });
+    }
 
-                // Close parent submenus that don't contain the relatedTarget
-                // This handles the case where mouse moves from nested submenu to unrelated menu area
-                this.closeOrphanedParentSubmenus(trigger, relatedTarget);
-            });
+    /**
+     * Close submenus that don't contain the given element
+     */
+    closeSubmenusNotContaining(element) {
+        const submenusToClose = [];
 
-            // Handle leaving the submenu itself
-            submenu.addEventListener('mouseleave', (e) => {
-                const relatedTarget = e.relatedTarget;
+        this.openSubmenus.forEach(submenu => {
+            // Skip if already closed (in case of race conditions)
+            if (!submenu.classList.contains('submenu-open')) {
+                this.openSubmenus.delete(submenu);
+                return;
+            }
 
-                // If moving back to trigger or staying within the submenu tree, keep open
-                if (relatedTarget && (trigger.contains(relatedTarget) || trigger === relatedTarget)) {
-                    return;
-                }
+            const trigger = submenu.parentElement;
+            const containsElement = submenu.contains(element) ||
+                                   submenu === element ||
+                                   (trigger && (trigger.contains(element) || trigger === element));
+            if (!containsElement) {
+                submenusToClose.push(submenu);
+            }
+        });
 
-                // If moving to a nested submenu, keep open
-                if (relatedTarget && submenu.contains(relatedTarget)) {
-                    return;
-                }
-
-                // Close this submenu and nested submenus
-                submenu.classList.remove('submenu-open');
-                submenu.querySelectorAll('.start-submenu.submenu-open').forEach(nested => {
-                    nested.classList.remove('submenu-open');
-                });
-
-                // Close parent submenus that don't contain the relatedTarget
-                // This handles nested submenus with position:fixed that won't receive mouseleave
-                this.closeOrphanedParentSubmenus(trigger, relatedTarget);
-            });
+        // Close submenus that don't contain the target element
+        submenusToClose.forEach(submenu => {
+            submenu.classList.remove('submenu-open');
+            this.openSubmenus.delete(submenu);
         });
     }
 
@@ -736,41 +787,9 @@ class StartMenuRendererClass {
         this.element.querySelectorAll('.start-submenu.submenu-open').forEach(submenu => {
             submenu.classList.remove('submenu-open');
         });
+        this.openSubmenus.clear();
     }
 
-    /**
-     * Close parent submenus that don't contain the relatedTarget.
-     * This is needed because position:fixed submenus won't receive mouseleave events
-     * when the mouse moves from a nested submenu to outside the parent's visual bounds.
-     * @param {HTMLElement} currentTrigger - The trigger whose submenu was just closed
-     * @param {HTMLElement|null} relatedTarget - Where the mouse is moving to
-     */
-    closeOrphanedParentSubmenus(currentTrigger, relatedTarget) {
-        // If relatedTarget is null (mouse left window) or outside start menu, close everything
-        if (!relatedTarget || !this.element.contains(relatedTarget)) {
-            this.closeAllSubmenus();
-            return;
-        }
-
-        // Walk up the parent submenu chain
-        let parentTrigger = currentTrigger.parentElement?.closest('.submenu-trigger');
-        while (parentTrigger) {
-            const parentSubmenu = parentTrigger.querySelector(':scope > .start-submenu');
-            if (parentSubmenu && parentSubmenu.classList.contains('submenu-open')) {
-                // Check if relatedTarget is within this parent's hierarchy
-                if (parentSubmenu.contains(relatedTarget) ||
-                    parentTrigger.contains(relatedTarget) ||
-                    parentSubmenu === relatedTarget ||
-                    parentTrigger === relatedTarget) {
-                    // Mouse is in this parent submenu's hierarchy, stop closing
-                    break;
-                }
-                // Mouse is not in this parent's hierarchy, close it
-                parentSubmenu.classList.remove('submenu-open');
-            }
-            parentTrigger = parentTrigger.parentElement?.closest('.submenu-trigger');
-        }
-    }
 }
 
 const StartMenuRenderer = new StartMenuRendererClass();
