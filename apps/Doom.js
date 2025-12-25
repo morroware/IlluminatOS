@@ -4,6 +4,8 @@
  */
 
 import AppBase from './AppBase.js';
+import EventBus from '../core/EventBus.js';
+import { DoomEvents } from '../core/scripted-events/SemanticEvents.js';
 
 class Doom extends AppBase {
     constructor() {
@@ -22,6 +24,9 @@ class Doom extends AppBase {
     }
 
     onOpen() {
+        // Emit started event
+        EventBus.emit(DoomEvents.STARTED, {});
+
         return `
             <style>
                 .doom-container {
@@ -230,12 +235,20 @@ class Doom extends AppBase {
             if (wrapper && !wrapper.contains(e.target)) {
                 // Clicked outside game area
                 if (status) status.classList.remove('active');
+                if (this.isFocused) {
+                    EventBus.emit(DoomEvents.BLURRED, {});
+                    this.isFocused = false;
+                }
             }
         });
 
         // Handle window focus/blur for this app
         this.addHandler(window, 'blur', () => {
             if (status) status.classList.remove('active');
+            if (this.isFocused) {
+                EventBus.emit(DoomEvents.BLURRED, {});
+                this.isFocused = false;
+            }
         });
     }
 
@@ -246,14 +259,14 @@ class Doom extends AppBase {
 
         // Hide overlay
         if (overlay) overlay.classList.add('hidden');
-        
+
         // Show active status
         if (status) status.classList.add('active');
 
         // Focus the iframe
         if (frame) {
             frame.focus();
-            
+
             // Some browsers need a click event forwarded
             try {
                 frame.contentWindow.focus();
@@ -263,6 +276,7 @@ class Doom extends AppBase {
         }
 
         this.isFocused = true;
+        EventBus.emit(DoomEvents.FOCUSED, {});
     }
 
     toggleFullscreen() {
@@ -271,6 +285,7 @@ class Doom extends AppBase {
 
         if (document.fullscreenElement) {
             document.exitFullscreen();
+            EventBus.emit(DoomEvents.FULLSCREEN_EXITED, {});
         } else {
             wrapper.requestFullscreen().catch(err => {
                 console.warn('[DOOM] Fullscreen error:', err);
@@ -280,6 +295,7 @@ class Doom extends AppBase {
                     frame.requestFullscreen().catch(() => {});
                 }
             });
+            EventBus.emit(DoomEvents.FULLSCREEN_ENTERED, {});
         }
     }
 

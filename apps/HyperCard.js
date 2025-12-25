@@ -1,4 +1,6 @@
 import AppBase from './AppBase.js';
+import EventBus from '../core/EventBus.js';
+import { HyperCardEvents } from '../core/scripted-events/SemanticEvents.js';
 
 class HyperCard extends AppBase {
     constructor() {
@@ -15,6 +17,9 @@ class HyperCard extends AppBase {
     }
 
     onOpen() {
+        // Emit opened event
+        EventBus.emit(HyperCardEvents.OPENED, {});
+
         return `
             <style>
                 /* Override window-content padding for proper sizing */
@@ -119,6 +124,7 @@ class HyperCard extends AppBase {
         this.addHandler(frame, 'load', () => {
             if (loadingMsg) loadingMsg.style.display = 'none';
             this.updateStatus('Ready');
+            EventBus.emit(HyperCardEvents.STACK_LOADED, { url: frame.src });
         });
 
         // Toolbar buttons
@@ -138,6 +144,7 @@ class HyperCard extends AppBase {
         const frame = this.getElement('#hyperCardFrame');
         frame.src = 'https://archive.org/embed/HyperCardBootSystem7';
         this.updateStatus('Loading home...');
+        EventBus.emit(HyperCardEvents.CARD_NAVIGATED, { destination: 'home' });
     }
 
     refresh() {
