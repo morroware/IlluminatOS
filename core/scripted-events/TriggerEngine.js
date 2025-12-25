@@ -326,11 +326,21 @@ export class TriggerEngine {
      * @param {Object} data - Event data
      */
     async handleEvent(eventName, data = {}) {
+        // Debug logging
+        if (this.context.manager?.getConfig?.('debugMode')) {
+            console.log(`[TriggerEngine] Event received: ${eventName}`, data);
+        }
+
         // Track event for history and counts
         this.trackEvent(eventName, data);
 
         // Find matching triggers
         const matchingTriggers = this.findMatchingTriggers(eventName);
+
+        if (this.context.manager?.getConfig?.('debugMode') && matchingTriggers.length > 0) {
+            console.log(`[TriggerEngine] Found ${matchingTriggers.length} matching trigger(s) for ${eventName}:`,
+                matchingTriggers.map(t => t.id));
+        }
 
         // Build evaluation context
         const context = {
@@ -444,14 +454,26 @@ export class TriggerEngine {
      * @param {Object} context - Evaluation context
      */
     async processTrigger(trigger, context) {
+        const debug = this.context.manager?.getConfig?.('debugMode');
+
         // Check if already fired (for "once" triggers)
         if (trigger.once && this.firedTriggers.has(trigger.id)) {
+            if (debug) {
+                console.log(`[TriggerEngine] Skipping trigger "${trigger.id}" - already fired (once=true)`);
+            }
             return;
         }
 
         // Check conditions
         if (trigger.conditions) {
             const conditionMet = evaluate(trigger.conditions, context);
+            if (debug) {
+                console.log(`[TriggerEngine] Evaluating conditions for trigger "${trigger.id}":`,
+                    conditionMet ? '✓ PASS' : '✗ FAIL', trigger.conditions);
+                if (!conditionMet && context.event) {
+                    console.log(`[TriggerEngine] Event data:`, context.event);
+                }
+            }
             if (!conditionMet) return;
         }
 
@@ -479,6 +501,12 @@ export class TriggerEngine {
      * @param {Object} context - Execution context
      */
     async fireTrigger(trigger, context) {
+        const debug = this.context.manager?.getConfig?.('debugMode');
+
+        if (debug) {
+            console.log(`[TriggerEngine] 🔥 FIRING trigger "${trigger.id}" with ${trigger.actions?.length || 0} action(s)`);
+        }
+
         // Mark as fired
         if (trigger.once) {
             this.firedTriggers.add(trigger.id);
@@ -497,6 +525,10 @@ export class TriggerEngine {
                 ...context,
                 trigger
             });
+        }
+
+        if (debug) {
+            console.log(`[TriggerEngine] ✓ Trigger "${trigger.id}" completed`);
         }
     }
 

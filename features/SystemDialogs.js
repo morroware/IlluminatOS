@@ -853,6 +853,9 @@ class SystemDialogs extends FeatureBase {
             this.alertResolver();
             this.alertResolver = null;
         }
+
+        // Emit event for scenario actions that are waiting
+        EventBus.emit('dialog:alert:closed');
     }
 
     /**
