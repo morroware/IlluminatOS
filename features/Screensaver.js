@@ -7,6 +7,7 @@ import FeatureBase from '../core/FeatureBase.js';
 import EventBus, { Events } from '../core/EventBus.js';
 import StateManager from '../core/StateManager.js';
 import StorageManager from '../core/StorageManager.js';
+import { ScreensaverEvents } from '../core/scripted-events/SemanticEvents.js';
 
 // Feature metadata
 const FEATURE_METADATA = {
@@ -202,6 +203,7 @@ class Screensaver extends FeatureBase {
         screensaver.classList.add('active');
         this.isActive = true;
         EventBus.emit(Events.SCREENSAVER_START);
+        EventBus.emit(ScreensaverEvents.STARTED, { type: this.type });
 
         // Trigger hook
         this.triggerHook('screensaver:started', { type: this.type });
@@ -266,6 +268,7 @@ class Screensaver extends FeatureBase {
 
         this.isActive = false;
         EventBus.emit(Events.SCREENSAVER_END);
+        EventBus.emit(ScreensaverEvents.ENDED, { type: this.type });
 
         // Trigger hook
         this.triggerHook('screensaver:stopped', {});
@@ -275,11 +278,13 @@ class Screensaver extends FeatureBase {
         this.delay = ms;
         this.setConfig('idleTimeout', ms);
         this.reset();
+        EventBus.emit(ScreensaverEvents.DELAY_CHANGED, { delay: ms });
     }
 
     setType(type) {
         this.type = type;
         this.setConfig('mode', type);
+        EventBus.emit(ScreensaverEvents.TYPE_CHANGED, { type });
     }
 
     /**
