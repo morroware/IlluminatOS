@@ -625,11 +625,20 @@ class StartMenuRendererClass {
         // Force reflow to get accurate measurements
         const submenuRect = submenu.getBoundingClientRect();
 
+        console.log(`[StartMenuRenderer] Initial positioning: left=${left}, width=${submenuRect.width}, viewport=${viewportWidth}, triggerLeft=${triggerRect.left}`);
+
         // Check if submenu would overflow to the right
         if (left + submenuRect.width > viewportWidth) {
-            // Position to the left of trigger instead
-            left = triggerRect.left - submenuRect.width;
-            if (left < 0) left = 0;
+            // Try positioning to the left of trigger instead
+            const leftAlternative = triggerRect.left - submenuRect.width;
+            if (leftAlternative >= 10) {
+                // Left positioning works - use it
+                left = leftAlternative;
+            } else {
+                // Both directions overflow - position with small right margin
+                left = viewportWidth - submenuRect.width - 10;
+                if (left < 10) left = 10; // Ensure minimum left margin
+            }
         }
 
         // Check if submenu would overflow below taskbar
