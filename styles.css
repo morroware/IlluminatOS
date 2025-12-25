@@ -1072,6 +1072,8 @@ body {
 
 .start-submenu {
     position: fixed;
+    left: 0;
+    top: 0;
     background: var(--win95-gray);
     border: 2px outset var(--win95-gray);
     min-width: 180px;
@@ -1080,11 +1082,18 @@ body {
     z-index: 10001;
     max-height: calc(100vh - 60px);
     overflow-y: auto;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
 }
 
 /* JavaScript controls visibility via .submenu-open class */
 .start-submenu.submenu-open {
     display: block;
+}
+
+/* Highlight the trigger when its submenu is open */
+.submenu-trigger:has(> .start-submenu.submenu-open) {
+    background: var(--win95-blue);
+    color: white;
 }
 
 /* Scrollable submenus when content exceeds available space */

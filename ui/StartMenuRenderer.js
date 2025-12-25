@@ -592,10 +592,29 @@ class StartMenuRendererClass {
             const submenu = trigger.querySelector(':scope > .start-submenu');
             if (!submenu) return;
 
+            let closeTimeout = null;
+
+            const cancelClose = () => {
+                if (closeTimeout) {
+                    clearTimeout(closeTimeout);
+                    closeTimeout = null;
+                }
+            };
+
+            const scheduleClose = () => {
+                cancelClose();
+                closeTimeout = setTimeout(() => {
+                    submenu.classList.remove('submenu-open');
+                    // Also close nested submenus
+                    submenu.querySelectorAll('.start-submenu.submenu-open').forEach(nested => {
+                        nested.classList.remove('submenu-open');
+                    });
+                }, 100); // 100ms delay for tolerance
+            };
+
             // Show submenu when entering trigger
             trigger.addEventListener('mouseenter', (e) => {
-                // Don't process if entering from a child element (prevents re-triggering)
-                if (e.relatedTarget && trigger.contains(e.relatedTarget)) return;
+                cancelClose();
 
                 // Close sibling submenus (other submenus at the same level)
                 const parent = trigger.parentElement;
@@ -616,46 +635,43 @@ class StartMenuRendererClass {
                 submenu.classList.add('submenu-open');
             });
 
-            // Hide submenu when leaving trigger, but only if not entering the submenu
+            // When entering the submenu, cancel any pending close
+            submenu.addEventListener('mouseenter', () => {
+                cancelClose();
+            });
+
+            // Hide submenu when leaving trigger (with delay)
             trigger.addEventListener('mouseleave', (e) => {
-                // Check if we're moving into the submenu (or any of its descendants)
                 const relatedTarget = e.relatedTarget;
+
+                // If moving into submenu or its children, don't schedule close
                 if (relatedTarget && (submenu.contains(relatedTarget) || submenu === relatedTarget)) {
-                    // Moving into the submenu, keep it open
                     return;
                 }
 
-                // Check if we're moving to another part of this trigger
+                // If moving within the trigger, don't close
                 if (relatedTarget && trigger.contains(relatedTarget)) {
                     return;
                 }
 
-                // Close this submenu and its nested submenus
-                submenu.classList.remove('submenu-open');
-                submenu.querySelectorAll('.start-submenu.submenu-open').forEach(nested => {
-                    nested.classList.remove('submenu-open');
-                });
+                scheduleClose();
             });
 
             // Handle leaving the submenu itself
             submenu.addEventListener('mouseleave', (e) => {
                 const relatedTarget = e.relatedTarget;
 
-                // If moving back to trigger or staying within the submenu tree, keep open
+                // If moving back to trigger, don't close
                 if (relatedTarget && (trigger.contains(relatedTarget) || trigger === relatedTarget)) {
                     return;
                 }
 
-                // If moving to a nested submenu, keep open
+                // If moving to a child element within submenu, don't close
                 if (relatedTarget && submenu.contains(relatedTarget)) {
                     return;
                 }
 
-                // Close this submenu and nested submenus
-                submenu.classList.remove('submenu-open');
-                submenu.querySelectorAll('.start-submenu.submenu-open').forEach(nested => {
-                    nested.classList.remove('submenu-open');
-                });
+                scheduleClose();
             });
         });
     }
@@ -673,49 +689,49 @@ class StartMenuRendererClass {
         const taskbarHeight = 50;
         const availableHeight = viewportHeight - taskbarHeight;
 
-        // Position submenu to the right of the trigger
+        // Default position: to the right of the trigger, aligned at top
         let left = triggerRect.right;
         let top = triggerRect.top;
 
-        // Debug: log submenu info
-        const triggerName = trigger.querySelector('span:not(.submenu-arrow):not(.start-menu-icon)')?.textContent || 'unknown';
-        const itemCount = submenu.querySelectorAll('.start-menu-item').length;
-        console.log(`[StartMenuRenderer] Positioning submenu for "${triggerName}" with ${itemCount} items`);
-
-        // Temporarily show to measure (visibility:hidden keeps layout but hides visually)
-        const originalDisplay = submenu.style.display;
-        const originalVisibility = submenu.style.visibility;
+        // First, set initial position and make visible to get accurate measurements
+        submenu.style.left = `${left}px`;
+        submenu.style.top = `${top}px`;
         submenu.style.visibility = 'hidden';
         submenu.style.display = 'block';
 
+        // Now get accurate submenu dimensions
         const submenuRect = submenu.getBoundingClientRect();
+        const submenuWidth = submenuRect.width;
+        const submenuHeight = submenuRect.height;
 
-        // Restore original inline styles (class will control actual display)
-        submenu.style.display = originalDisplay;
-        submenu.style.visibility = originalVisibility;
+        // Hide again while we calculate final position
+        submenu.style.display = '';
+        submenu.style.visibility = '';
 
-        // Check if submenu would overflow to the right
-        if (left + submenuRect.width > viewportWidth) {
+        // Check if submenu would overflow to the right of viewport
+        if (left + submenuWidth > viewportWidth) {
             // Position to the left of trigger instead
-            left = triggerRect.left - submenuRect.width;
-            if (left < 0) left = 0;
+            left = triggerRect.left - submenuWidth;
+            // If still off-screen, align to left edge
+            if (left < 0) left = 4;
         }
 
         // Check if submenu would overflow below taskbar
-        if (top + submenuRect.height > availableHeight) {
-            // Shift up to fit
-            top = availableHeight - submenuRect.height;
+        if (top + submenuHeight > availableHeight) {
+            // Align bottom of submenu with bottom of available area
+            top = availableHeight - submenuHeight;
+            // If submenu is taller than available space
             if (top < 0) {
-                // Submenu is taller than available space, pin to top and limit height
-                top = 0;
-                submenu.style.maxHeight = `${availableHeight - 10}px`;
+                top = 4;
+                submenu.style.maxHeight = `${availableHeight - 8}px`;
             }
         }
 
-        // Ensure top is not negative
-        if (top < 0) top = 0;
+        // Final safety bounds
+        if (left < 0) left = 4;
+        if (top < 0) top = 4;
 
-        // Apply positioning
+        // Apply final positioning
         submenu.style.left = `${left}px`;
         submenu.style.top = `${top}px`;
     }
