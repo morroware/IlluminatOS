@@ -594,14 +594,21 @@ class StartMenuRendererClass {
 
             // Show submenu when entering trigger
             trigger.addEventListener('mouseenter', (e) => {
+                // Build the ancestor chain - all submenus that contain this trigger
+                const ancestors = new Set();
+                let el = trigger.parentElement;
+                while (el && el !== this.element) {
+                    if (el.classList.contains('start-submenu')) {
+                        ancestors.add(el);
+                    }
+                    el = el.parentElement;
+                }
+
                 // Close all submenus that are NOT ancestors of this trigger
                 this.element.querySelectorAll('.start-submenu.submenu-open').forEach(openSubmenu => {
-                    // Keep open if this submenu contains our trigger (it's an ancestor)
-                    if (openSubmenu.contains(trigger)) {
-                        return;
+                    if (!ancestors.has(openSubmenu)) {
+                        openSubmenu.classList.remove('submenu-open');
                     }
-                    // Close it and all its nested submenus
-                    openSubmenu.classList.remove('submenu-open');
                 });
 
                 // Position and show this submenu
@@ -611,16 +618,20 @@ class StartMenuRendererClass {
         });
 
         // Close all submenus when mouse leaves the entire start menu
-        this.element.addEventListener('mouseleave', (e) => {
-            // Small delay to allow moving between menu and submenus
-            setTimeout(() => {
-                // Check if mouse is still outside
-                if (!this.element.matches(':hover') &&
-                    !document.querySelector('.start-submenu:hover')) {
-                    this.closeAllSubmenus();
-                }
-            }, 100);
-        });
+        // Only attach once by checking for existing handler
+        if (!this._mouseleaveAttached) {
+            this._mouseleaveAttached = true;
+            this.element.addEventListener('mouseleave', (e) => {
+                // Small delay to allow moving between menu and submenus
+                setTimeout(() => {
+                    // Check if mouse is still outside
+                    if (!this.element.matches(':hover') &&
+                        !document.querySelector('.start-submenu:hover')) {
+                        this.closeAllSubmenus();
+                    }
+                }, 100);
+            });
+        }
     }
 
     /**
