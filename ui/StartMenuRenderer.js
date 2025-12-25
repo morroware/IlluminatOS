@@ -592,87 +592,34 @@ class StartMenuRendererClass {
             const submenu = trigger.querySelector(':scope > .start-submenu');
             if (!submenu) return;
 
-            let closeTimeout = null;
-
-            const cancelClose = () => {
-                if (closeTimeout) {
-                    clearTimeout(closeTimeout);
-                    closeTimeout = null;
-                }
-            };
-
-            const scheduleClose = () => {
-                cancelClose();
-                closeTimeout = setTimeout(() => {
-                    submenu.classList.remove('submenu-open');
-                    // Also close nested submenus
-                    submenu.querySelectorAll('.start-submenu.submenu-open').forEach(nested => {
-                        nested.classList.remove('submenu-open');
-                    });
-                }, 100); // 100ms delay for tolerance
-            };
-
             // Show submenu when entering trigger
             trigger.addEventListener('mouseenter', (e) => {
-                cancelClose();
-
-                // Close sibling submenus (other submenus at the same level)
-                const parent = trigger.parentElement;
-                if (parent) {
-                    parent.querySelectorAll(':scope > .submenu-trigger > .start-submenu.submenu-open').forEach(sibling => {
-                        if (sibling !== submenu) {
-                            sibling.classList.remove('submenu-open');
-                            // Also close nested submenus of the sibling
-                            sibling.querySelectorAll('.start-submenu.submenu-open').forEach(nested => {
-                                nested.classList.remove('submenu-open');
-                            });
-                        }
-                    });
-                }
+                // Close all submenus that are NOT ancestors of this trigger
+                this.element.querySelectorAll('.start-submenu.submenu-open').forEach(openSubmenu => {
+                    // Keep open if this submenu contains our trigger (it's an ancestor)
+                    if (openSubmenu.contains(trigger)) {
+                        return;
+                    }
+                    // Close it and all its nested submenus
+                    openSubmenu.classList.remove('submenu-open');
+                });
 
                 // Position and show this submenu
                 this.positionSubmenu(trigger, submenu);
                 submenu.classList.add('submenu-open');
             });
+        });
 
-            // When entering the submenu, cancel any pending close
-            submenu.addEventListener('mouseenter', () => {
-                cancelClose();
-            });
-
-            // Hide submenu when leaving trigger (with delay)
-            trigger.addEventListener('mouseleave', (e) => {
-                const relatedTarget = e.relatedTarget;
-
-                // If moving into submenu or its children, don't schedule close
-                if (relatedTarget && (submenu.contains(relatedTarget) || submenu === relatedTarget)) {
-                    return;
+        // Close all submenus when mouse leaves the entire start menu
+        this.element.addEventListener('mouseleave', (e) => {
+            // Small delay to allow moving between menu and submenus
+            setTimeout(() => {
+                // Check if mouse is still outside
+                if (!this.element.matches(':hover') &&
+                    !document.querySelector('.start-submenu:hover')) {
+                    this.closeAllSubmenus();
                 }
-
-                // If moving within the trigger, don't close
-                if (relatedTarget && trigger.contains(relatedTarget)) {
-                    return;
-                }
-
-                scheduleClose();
-            });
-
-            // Handle leaving the submenu itself
-            submenu.addEventListener('mouseleave', (e) => {
-                const relatedTarget = e.relatedTarget;
-
-                // If moving back to trigger, don't close
-                if (relatedTarget && (trigger.contains(relatedTarget) || trigger === relatedTarget)) {
-                    return;
-                }
-
-                // If moving to a child element within submenu, don't close
-                if (relatedTarget && submenu.contains(relatedTarget)) {
-                    return;
-                }
-
-                scheduleClose();
-            });
+            }, 100);
         });
     }
 
