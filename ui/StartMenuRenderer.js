@@ -703,16 +703,15 @@ class StartMenuRendererClass {
 
         if (parentSubmenu) {
             // NESTED submenu - position to the right of the parent submenu
-            // Get parent submenu's position (it should already be positioned)
             const parentRect = parentSubmenu.getBoundingClientRect();
             left = parentRect.right;
 
-            // For vertical position, use trigger's offset within parent + parent's top
-            // This avoids issues with measuring while submenu is at wrong position
-            const triggerOffsetInParent = trigger.offsetTop;
+            // For vertical position, use trigger's position within parent, accounting for scroll
+            // offsetTop gives position in scrollable content, subtract scrollTop for visible position
+            const triggerOffsetInParent = trigger.offsetTop - parentSubmenu.scrollTop;
             top = parentRect.top + triggerOffsetInParent;
 
-            console.log(`[Submenu] "${triggerName}" is NESTED. Parent: (${parentRect.left}, ${parentRect.top}) to (${parentRect.right}, ${parentRect.bottom}), triggerOffset: ${triggerOffsetInParent}, calculated top: ${top}`);
+            console.log(`[Submenu] "${triggerName}" is NESTED. Parent top: ${parentRect.top}, triggerOffset: ${trigger.offsetTop}, scrollTop: ${parentSubmenu.scrollTop}, calculated top: ${top}`);
         } else {
             // FIRST-LEVEL submenu - position to the right of the start menu
             const startMenu = document.getElementById('startMenu');
