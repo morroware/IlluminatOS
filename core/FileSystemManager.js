@@ -6,6 +6,7 @@
 import StorageManager from './StorageManager.js';
 import EventBus from './EventBus.js';
 import { PATHS } from './Constants.js';
+import { FileSystemEvents } from './scripted-events/SemanticEvents.js';
 
 class FileSystemManager {
   constructor() {
@@ -402,7 +403,16 @@ class FileSystemManager {
       throw new Error(`Not a file: ${path}`);
     }
 
-    return node.content || '';
+    const content = node.content || '';
+
+    // Emit read event for scenarios
+    const parts = this.parsePath(path);
+    EventBus.emit(FileSystemEvents.FILE_READ, {
+      path: parts.join('/'),
+      size: content.length
+    });
+
+    return content;
   }
 
   /**
@@ -450,7 +460,11 @@ class FileSystemManager {
     }
 
     this.saveFileSystem();
-    EventBus.emit('filesystem:file:changed', { path: parts.join('/'), action: 'write' });
+    EventBus.emit(FileSystemEvents.FILE_WRITTEN, {
+      path: parts.join('/'),
+      content: content,
+      size: content.length
+    });
   }
 
   /**
@@ -480,7 +494,7 @@ class FileSystemManager {
 
     delete children[fileName];
     this.saveFileSystem();
-    EventBus.emit('filesystem:file:changed', { path: parts.join('/'), action: 'delete' });
+    EventBus.emit(FileSystemEvents.FILE_DELETED, { path: parts.join('/') });
   }
 
   /**
@@ -510,7 +524,7 @@ class FileSystemManager {
     };
 
     this.saveFileSystem();
-    EventBus.emit('filesystem:directory:changed', { path: parts.join('/'), action: 'create' });
+    EventBus.emit(FileSystemEvents.DIRECTORY_CREATED, { path: parts.join('/') });
   }
 
   /**
@@ -551,7 +565,7 @@ class FileSystemManager {
 
     delete children[dirName];
     this.saveFileSystem();
-    EventBus.emit('filesystem:directory:changed', { path: parts.join('/'), action: 'delete' });
+    EventBus.emit(FileSystemEvents.DIRECTORY_DELETED, { path: parts.join('/') });
   }
 
   /**
@@ -687,10 +701,9 @@ class FileSystemManager {
     delete srcChildren[srcName];
 
     this.saveFileSystem();
-    EventBus.emit('filesystem:file:changed', {
-      path: srcParts.join('/'),
-      destPath: [...destParts, srcName].join('/'),
-      action: 'move'
+    EventBus.emit(FileSystemEvents.FILE_MOVED, {
+      fromPath: srcParts.join('/'),
+      toPath: [...destParts, srcName].join('/')
     });
 
     return true;
@@ -744,9 +757,9 @@ class FileSystemManager {
     destChildren[newName].modified = new Date().toISOString();
 
     this.saveFileSystem();
-    EventBus.emit('filesystem:file:changed', {
-      path: [...destParts, newName].join('/'),
-      action: 'copy'
+    EventBus.emit(FileSystemEvents.FILE_COPIED, {
+      fromPath: srcParts.join('/'),
+      toPath: [...destParts, newName].join('/')
     });
 
     return true;
