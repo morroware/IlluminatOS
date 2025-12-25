@@ -594,21 +594,26 @@ class StartMenuRendererClass {
 
             // Show submenu when entering trigger
             trigger.addEventListener('mouseenter', (e) => {
-                // Build the ancestor chain - all submenus that contain this trigger
-                const ancestors = new Set();
+                e.stopPropagation();
+
+                // Build list of ancestor triggers (to keep their submenus open)
+                const ancestorSubmenus = [];
                 let el = trigger.parentElement;
                 while (el && el !== this.element) {
                     if (el.classList.contains('start-submenu')) {
-                        ancestors.add(el);
+                        ancestorSubmenus.push(el);
                     }
                     el = el.parentElement;
                 }
 
-                // Close all submenus that are NOT ancestors of this trigger
+                // Close ALL submenus first
                 this.element.querySelectorAll('.start-submenu.submenu-open').forEach(openSubmenu => {
-                    if (!ancestors.has(openSubmenu)) {
-                        openSubmenu.classList.remove('submenu-open');
-                    }
+                    openSubmenu.classList.remove('submenu-open');
+                });
+
+                // Re-open ancestor submenus
+                ancestorSubmenus.forEach(ancestorSubmenu => {
+                    ancestorSubmenu.classList.add('submenu-open');
                 });
 
                 // Position and show this submenu
@@ -617,14 +622,30 @@ class StartMenuRendererClass {
             });
         });
 
+        // Also close nested submenus when hovering non-trigger items
+        this.element.querySelectorAll('.start-menu-item:not(.submenu-trigger)').forEach(item => {
+            item.addEventListener('mouseenter', (e) => {
+                // Find which submenu this item is in
+                const parentSubmenu = item.closest('.start-submenu');
+
+                // Close all submenus that are deeper than this item's level
+                this.element.querySelectorAll('.start-submenu.submenu-open').forEach(openSubmenu => {
+                    // If this open submenu is NOT an ancestor of this item, close it
+                    if (parentSubmenu && !openSubmenu.contains(item)) {
+                        // But keep the parent submenu open
+                        if (openSubmenu !== parentSubmenu && !parentSubmenu.contains(openSubmenu)) {
+                            openSubmenu.classList.remove('submenu-open');
+                        }
+                    }
+                });
+            });
+        });
+
         // Close all submenus when mouse leaves the entire start menu
-        // Only attach once by checking for existing handler
         if (!this._mouseleaveAttached) {
             this._mouseleaveAttached = true;
             this.element.addEventListener('mouseleave', (e) => {
-                // Small delay to allow moving between menu and submenus
                 setTimeout(() => {
-                    // Check if mouse is still outside
                     if (!this.element.matches(':hover') &&
                         !document.querySelector('.start-submenu:hover')) {
                         this.closeAllSubmenus();
