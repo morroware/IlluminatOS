@@ -14,11 +14,14 @@ class StartMenuRendererClass {
         this.startButton = null;
         this.isOpen = false;
         this.initialized = false;
+        this.focusedIndex = -1;
+        this.focusableItems = [];
 
         // Bound handlers for cleanup
         this.boundHandleOutsideClick = this.handleOutsideClick.bind(this);
         this.boundHandleStartClick = this.handleStartClick.bind(this);
         this.boundHandleMenuClick = this.handleMenuClick.bind(this);
+        this.boundHandleKeydown = this.handleKeydown.bind(this);
     }
 
     initialize() {
@@ -46,6 +49,9 @@ class StartMenuRendererClass {
 
         // Outside click to close - using bound handler
         document.addEventListener('click', this.boundHandleOutsideClick);
+
+        // Keyboard navigation
+        document.addEventListener('keydown', this.boundHandleKeydown);
 
         EventBus.on(Events.WINDOW_OPEN, () => this.close());
         StateManager.subscribe('menuItems', () => this.render());
@@ -94,12 +100,213 @@ class StartMenuRendererClass {
     }
 
     /**
+     * Handle keyboard navigation for Start Menu
+     */
+    handleKeydown(e) {
+        // Only handle when menu is open
+        if (!this.isOpen) {
+            // Windows key or Ctrl+Escape opens start menu
+            if (e.key === 'Meta' || (e.ctrlKey && e.key === 'Escape')) {
+                e.preventDefault();
+                this.open();
+                return;
+            }
+            return;
+        }
+
+        // Update focusable items list
+        this.updateFocusableItems();
+
+        switch (e.key) {
+            case 'Escape':
+                e.preventDefault();
+                this.close();
+                this.startButton?.focus();
+                break;
+
+            case 'ArrowDown':
+                e.preventDefault();
+                this.moveFocus(1);
+                break;
+
+            case 'ArrowUp':
+                e.preventDefault();
+                this.moveFocus(-1);
+                break;
+
+            case 'ArrowRight':
+                e.preventDefault();
+                this.expandSubmenu();
+                break;
+
+            case 'ArrowLeft':
+                e.preventDefault();
+                this.collapseSubmenu();
+                break;
+
+            case 'Enter':
+            case ' ':
+                e.preventDefault();
+                this.activateFocusedItem();
+                break;
+
+            case 'Home':
+                e.preventDefault();
+                this.focusFirst();
+                break;
+
+            case 'End':
+                e.preventDefault();
+                this.focusLast();
+                break;
+
+            default:
+                // Type-ahead: focus item starting with pressed key
+                if (e.key.length === 1 && !e.ctrlKey && !e.altKey) {
+                    this.typeAhead(e.key);
+                }
+                break;
+        }
+    }
+
+    /**
+     * Update the list of focusable menu items
+     */
+    updateFocusableItems() {
+        if (!this.element) return;
+        // Get all visible menu items (not inside hidden submenus)
+        this.focusableItems = Array.from(
+            this.element.querySelectorAll('.start-menu-item:not(.start-submenu .start-menu-item)')
+        );
+    }
+
+    /**
+     * Move focus by offset (positive = down, negative = up)
+     */
+    moveFocus(offset) {
+        if (this.focusableItems.length === 0) return;
+
+        // Remove highlight from current item
+        if (this.focusedIndex >= 0 && this.focusableItems[this.focusedIndex]) {
+            this.focusableItems[this.focusedIndex].classList.remove('keyboard-focused');
+        }
+
+        // Calculate new index with wrapping
+        if (this.focusedIndex === -1) {
+            this.focusedIndex = offset > 0 ? 0 : this.focusableItems.length - 1;
+        } else {
+            this.focusedIndex += offset;
+            if (this.focusedIndex < 0) this.focusedIndex = this.focusableItems.length - 1;
+            if (this.focusedIndex >= this.focusableItems.length) this.focusedIndex = 0;
+        }
+
+        // Add highlight and scroll into view
+        const item = this.focusableItems[this.focusedIndex];
+        if (item) {
+            item.classList.add('keyboard-focused');
+            item.scrollIntoView({ block: 'nearest' });
+            item.focus();
+        }
+    }
+
+    /**
+     * Focus the first menu item
+     */
+    focusFirst() {
+        this.focusedIndex = -1;
+        this.moveFocus(1);
+    }
+
+    /**
+     * Focus the last menu item
+     */
+    focusLast() {
+        this.focusedIndex = this.focusableItems.length;
+        this.moveFocus(-1);
+    }
+
+    /**
+     * Expand submenu of focused item
+     */
+    expandSubmenu() {
+        if (this.focusedIndex < 0 || !this.focusableItems[this.focusedIndex]) return;
+
+        const item = this.focusableItems[this.focusedIndex];
+        if (item.classList.contains('submenu-trigger')) {
+            const submenu = item.querySelector('.start-submenu');
+            if (submenu) {
+                // Update focusable items to submenu items
+                this.focusableItems = Array.from(submenu.querySelectorAll('.start-menu-item'));
+                this.focusedIndex = -1;
+                this.moveFocus(1);
+            }
+        }
+    }
+
+    /**
+     * Collapse submenu and return to parent menu
+     */
+    collapseSubmenu() {
+        // Reset to top-level items
+        this.updateFocusableItems();
+        this.focusedIndex = -1;
+        this.moveFocus(1);
+    }
+
+    /**
+     * Activate (click) the currently focused item
+     */
+    activateFocusedItem() {
+        if (this.focusedIndex < 0 || !this.focusableItems[this.focusedIndex]) return;
+
+        const item = this.focusableItems[this.focusedIndex];
+
+        // If it's a submenu trigger, expand it
+        if (item.classList.contains('submenu-trigger')) {
+            this.expandSubmenu();
+            return;
+        }
+
+        // Otherwise, click it
+        item.click();
+    }
+
+    /**
+     * Type-ahead: focus item starting with pressed key
+     */
+    typeAhead(key) {
+        const lowerKey = key.toLowerCase();
+        const startIndex = this.focusedIndex + 1;
+
+        // Search from current position to end
+        for (let i = startIndex; i < this.focusableItems.length; i++) {
+            const text = this.focusableItems[i].textContent.trim().toLowerCase();
+            if (text.startsWith(lowerKey)) {
+                this.focusedIndex = i - 1;
+                this.moveFocus(1);
+                return;
+            }
+        }
+
+        // Wrap around and search from beginning
+        for (let i = 0; i < startIndex; i++) {
+            const text = this.focusableItems[i].textContent.trim().toLowerCase();
+            if (text.startsWith(lowerKey)) {
+                this.focusedIndex = i - 1;
+                this.moveFocus(1);
+                return;
+            }
+        }
+    }
+
+    /**
      * Cleanup resources
      */
     destroy() {
         if (!this.initialized) return;
 
         document.removeEventListener('click', this.boundHandleOutsideClick);
+        document.removeEventListener('keydown', this.boundHandleKeydown);
 
         if (this.startButton) {
             this.startButton.removeEventListener('click', this.boundHandleStartClick);
@@ -126,6 +333,16 @@ class StartMenuRendererClass {
 
     close() {
         this.isOpen = false;
+        this.focusedIndex = -1;
+        this.focusableItems = [];
+
+        // Remove keyboard focus from all items
+        if (this.element) {
+            this.element.querySelectorAll('.keyboard-focused').forEach(el => {
+                el.classList.remove('keyboard-focused');
+            });
+        }
+
         this.element.classList.remove('active');
         this.startButton.classList.remove('active');
         EventBus.emit(StartMenuEvents.CLOSED, {});
@@ -193,8 +410,8 @@ class StartMenuRendererClass {
         const links = (StateManager.getState('icons') || []).filter(i => i.type === 'link');
 
         const renderAppList = (list) => list.map(app => `
-            <div class="start-menu-item" data-app="${app.id}">
-                <span class="start-menu-icon">${app.icon}</span>
+            <div class="start-menu-item" data-app="${app.id}" tabindex="-1" role="menuitem">
+                <span class="start-menu-icon" aria-hidden="true">${app.icon}</span>
                 <span>${app.name}</span>
             </div>
         `).join('');

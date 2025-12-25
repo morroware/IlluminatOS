@@ -9,8 +9,15 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <!-- Skip to main content link for accessibility -->
+    <a href="#desktop" class="skip-link">Skip to desktop</a>
+
+    <!-- ARIA Live Regions for screen reader announcements -->
+    <div id="ariaLivePolite" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+    <div id="ariaLiveAssertive" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+
     <!-- Boot Screen -->
-    <div class="boot-screen" id="bootScreen">
+    <div class="boot-screen" id="bootScreen" role="alert" aria-busy="true">
         <div class="boot-logo">IlluminatOS!</div>
         <div class="boot-version">Version 95.0 - Modular Edition</div>
         <div>Starting Windows 95...</div>
@@ -32,7 +39,7 @@
     </div>
     
     <!-- Desktop -->
-    <div class="desktop" id="desktop">
+    <main class="desktop" id="desktop" role="application" aria-label="Desktop workspace">
         <!-- Icons rendered by DesktopRenderer -->
         
         <!-- Clippy Assistant -->
@@ -49,16 +56,16 @@
         </div>
         
         <!-- Desktop Pet -->
-        <div class="desktop-pet" id="desktopPet">🐕</div>
-    </div>
-    
+        <div class="desktop-pet" id="desktopPet" aria-hidden="true">🐕</div>
+    </main>
+
     <!-- Right-click Context Menu -->
-    <div class="context-menu" id="contextMenu">
+    <nav class="context-menu" id="contextMenu" role="menu" aria-label="Context menu">
         <!-- Content rendered by ContextMenuRenderer -->
-    </div>
-    
+    </nav>
+
     <!-- Start Menu -->
-    <div class="start-menu" id="startMenu">
+    <nav class="start-menu" id="startMenu" role="menu" aria-label="Start menu">
         <div class="start-menu-sidebar">
             <span class="sidebar-text">IlluminatOS!</span>
         </div>
@@ -67,11 +74,11 @@
                 <!-- Content rendered by StartMenuRenderer -->
             </div>
         </div>
-    </div>
-    
+    </nav>
+
     <!-- Taskbar -->
-    <div class="taskbar" id="taskbar">
-        <button class="start-button" id="startButton">
+    <footer class="taskbar" id="taskbar" role="navigation" aria-label="Taskbar">
+        <button class="start-button" id="startButton" aria-haspopup="true" aria-expanded="false" aria-controls="startMenu">
             <div class="start-logo">
                 <div class="windows-flag"></div>
             </div>
@@ -87,14 +94,14 @@
         <div class="taskbar-buttons" id="taskbarButtons">
             <!-- Window buttons rendered by TaskbarRenderer -->
         </div>
-        <div class="system-tray" id="systemTray">
-            <div class="tray-icon" id="volumeIcon" title="Volume">📊</div>
-            <div class="tray-icon" id="networkIcon" title="Connected">📶</div>
+        <div class="system-tray" id="systemTray" role="region" aria-label="System tray">
+            <div class="tray-icon" id="volumeIcon" title="Volume" role="button" aria-label="Volume control">📊</div>
+            <div class="tray-icon" id="networkIcon" title="Connected" role="status" aria-label="Network status: Connected">📶</div>
             <div class="taskbar-divider-small"></div>
-            <div class="taskbar-time" id="clock">12:00 PM</div>
+            <time class="taskbar-time" id="clock" aria-live="off">12:00 PM</time>
         </div>
-    </div>
-    
+    </footer>
+
     <!-- Calendar Popup -->
     <div class="calendar-popup" id="calendarPopup">
         <!-- Content rendered by TaskbarRenderer -->
@@ -117,19 +124,19 @@
     </div>
     
     <!-- Dialog Overlay (for alerts) -->
-    <div class="dialog-overlay" id="dialogOverlay">
+    <div class="dialog-overlay" id="dialogOverlay" role="dialog" aria-modal="true" aria-labelledby="dialogText">
         <div class="dialog-box" id="dialogBox">
-            <div class="dialog-icon" id="dialogIcon">ℹ️</div>
+            <div class="dialog-icon" id="dialogIcon" aria-hidden="true">ℹ️</div>
             <div class="dialog-text" id="dialogText"></div>
             <div class="dialog-buttons">
                 <button class="btn btn-primary" id="dialogOk">OK</button>
             </div>
         </div>
     </div>
-    
+
     <!-- Achievement Toast -->
-    <div class="achievement-toast" id="achievementToast">
-        <div class="achievement-icon" id="achievementIcon">🏆</div>
+    <div class="achievement-toast" id="achievementToast" role="status" aria-live="polite">
+        <div class="achievement-icon" id="achievementIcon" aria-hidden="true">🏆</div>
         <div class="achievement-title">Achievement Unlocked!</div>
         <div class="achievement-desc" id="achievementDesc"></div>
     </div>
