@@ -274,14 +274,23 @@ const actionHandlers = {
     async showDialog(params, context) {
         const { title, message, icon = 'info', buttons = ['OK'] } = params;
 
-        // Use system dialogs - emit 'dialog:alert' which SystemDialogs listens for
-        EventBus.emit('dialog:alert', {
-            title,
-            message,
-            icon
-        });
+        // Create a promise that waits for the dialog to be dismissed
+        return new Promise((resolve) => {
+            // Listen for dialog closed event (one-time listener)
+            const handleDialogClosed = () => {
+                EventBus.off('dialog:alert:closed', handleDialogClosed);
+                resolve({ button: buttons[0] || 'OK' });
+            };
 
-        return { button: buttons[0] || 'OK' };
+            EventBus.on('dialog:alert:closed', handleDialogClosed);
+
+            // Use system dialogs - emit 'dialog:alert' which SystemDialogs listens for
+            EventBus.emit('dialog:alert', {
+                title,
+                message,
+                icon
+            });
+        });
     },
 
     /**
