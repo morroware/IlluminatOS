@@ -6,6 +6,7 @@
 import AppBase from './AppBase.js';
 import StateManager from '../core/StateManager.js';
 import EventBus, { Events } from '../core/EventBus.js';
+import { SoundSettingsEvents } from '../core/scripted-events/SemanticEvents.js';
 
 class SoundSettings extends AppBase {
     constructor() {
@@ -27,6 +28,9 @@ class SoundSettings extends AppBase {
     onOpen() {
         const soundEnabled = StateManager.getState('settings.sound');
         const volume = StateManager.getState('settings.volume') || 0.5;
+
+        // Emit opened event
+        EventBus.emit(SoundSettingsEvents.OPENED, { soundEnabled, volume });
 
         return `
             <style>
@@ -426,6 +430,7 @@ class SoundSettings extends AppBase {
             this.addHandler(previewBtn, 'click', () => {
                 if (this.selectedEvent) {
                     EventBus.emit(Events.SOUND_PLAY, { type: this.selectedEvent, force: true });
+                    EventBus.emit(SoundSettingsEvents.TEST, { event: this.selectedEvent });
                 }
             });
         }
@@ -450,6 +455,7 @@ class SoundSettings extends AppBase {
         if (soundEnabled) {
             this.addHandler(soundEnabled, 'change', (e) => {
                 StateManager.setState('settings.sound', e.target.checked, true);
+                EventBus.emit(SoundSettingsEvents.SOUND_TOGGLED, { enabled: e.target.checked });
             });
         }
 
@@ -466,6 +472,7 @@ class SoundSettings extends AppBase {
                 const value = parseInt(e.target.value) / 100;
                 StateManager.setState('settings.volume', value, true);
                 EventBus.emit(Events.VOLUME_CHANGE, { volume: value });
+                EventBus.emit(SoundSettingsEvents.VOLUME_CHANGED, { volume: value });
             });
         }
 

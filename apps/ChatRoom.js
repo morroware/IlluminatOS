@@ -4,6 +4,8 @@
  */
 
 import AppBase from './AppBase.js';
+import EventBus from '../core/EventBus.js';
+import { ChatRoomEvents } from '../core/scripted-events/SemanticEvents.js';
 
 class ChatRoom extends AppBase {
     constructor() {
@@ -428,6 +430,18 @@ class ChatRoom extends AppBase {
 
         // Start bot chat simulation
         this.startBotChat();
+
+        // Emit opened and joined events
+        EventBus.emit(ChatRoomEvents.OPENED, {
+            username: this.username
+        });
+
+        EventBus.emit(ChatRoomEvents.JOINED, {
+            username: this.username,
+            room: this.currentRoom,
+            roomLabel: this.rooms[0].label,
+            userCount: this.users.length
+        });
     }
 
     getRandomUsers(count) {
@@ -462,6 +476,13 @@ class ChatRoom extends AppBase {
         const message = this.botMessages[Math.floor(Math.random() * this.botMessages.length)];
 
         this.addMessage(user.name, message, user.color);
+
+        // Emit message received event
+        EventBus.emit(ChatRoomEvents.MESSAGE_RECEIVED, {
+            username: user.name,
+            message,
+            room: this.currentRoom
+        });
     }
 
     showTypingIndicator() {
@@ -488,6 +509,13 @@ class ChatRoom extends AppBase {
                 this.users = this.users.filter(u => u.name !== leaving.name);
                 this.addSystemMessage(`*** ${leaving.name} has left the room ***`);
                 this.updateUserList();
+
+                // Emit user left event
+                EventBus.emit(ChatRoomEvents.USER_LEFT, {
+                    username: leaving.name,
+                    room: this.currentRoom,
+                    userCount: this.users.length
+                });
             }
         } else {
             // New user joins
@@ -499,6 +527,13 @@ class ChatRoom extends AppBase {
                 this.users.push({ ...joining });
                 this.addSystemMessage(`*** ${joining.name} has entered the room ***`);
                 this.updateUserList();
+
+                // Emit user joined event
+                EventBus.emit(ChatRoomEvents.USER_JOINED, {
+                    username: joining.name,
+                    room: this.currentRoom,
+                    userCount: this.users.length
+                });
             }
         }
     }
@@ -512,10 +547,22 @@ class ChatRoom extends AppBase {
         // Check for action commands
         if (message.startsWith('/me ')) {
             this.addActionMessage(this.username, message.slice(4));
+            // Emit emote event
+            EventBus.emit(ChatRoomEvents.EMOTE, {
+                username: this.username,
+                action: message.slice(4),
+                room: this.currentRoom
+            });
         } else if (message.startsWith('/')) {
             this.handleCommand(message);
         } else {
             this.addMessage(this.username, message, '#000', true);
+            // Emit message sent event
+            EventBus.emit(ChatRoomEvents.MESSAGE_SENT, {
+                username: this.username,
+                message,
+                room: this.currentRoom
+            });
         }
 
         if (input) input.value = '';
@@ -632,6 +679,7 @@ class ChatRoom extends AppBase {
         const room = this.rooms.find(r => r.name === roomName);
         if (!room) return;
 
+        const previousRoom = this.currentRoom;
         this.currentRoom = roomName;
 
         // Update active room style
@@ -656,6 +704,22 @@ class ChatRoom extends AppBase {
         this.updateUserList();
         this.addSystemMessage(`*** You have joined ${room.label} ***`);
         this.addSystemMessage(`*** ${this.username} has entered the room ***`);
+
+        // Emit left previous room
+        if (previousRoom) {
+            EventBus.emit(ChatRoomEvents.LEFT, {
+                username: this.username,
+                room: previousRoom
+            });
+        }
+
+        // Emit joined new room
+        EventBus.emit(ChatRoomEvents.JOINED, {
+            username: this.username,
+            room: roomName,
+            roomLabel: room.label,
+            userCount: this.users.length
+        });
     }
 
     updateUserList() {

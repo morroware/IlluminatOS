@@ -4,6 +4,8 @@
  */
 
 import AppBase from './AppBase.js';
+import EventBus from '../core/EventBus.js';
+import { WinampEvents } from '../core/scripted-events/SemanticEvents.js';
 
 class Winamp extends AppBase {
     constructor() {
@@ -372,6 +374,12 @@ class Winamp extends AppBase {
 
         // Start visualizer
         this.startVisualizer();
+
+        // Emit opened event
+        EventBus.emit(WinampEvents.OPENED, {
+            playlistCount: this.playlist.length,
+            currentTrack: this.currentTrack
+        });
     }
 
     onClose() {
@@ -413,6 +421,13 @@ class Winamp extends AppBase {
         this.isPlaying = true;
         this.getElement('#btnPlay')?.classList.add('active');
 
+        // Emit play event
+        EventBus.emit(WinampEvents.PLAY, {
+            trackIndex: this.currentTrack,
+            trackTitle: track.title,
+            artist: track.artist
+        });
+
         // Update time
         this.timeInterval = setInterval(() => {
             this.currentTime++;
@@ -445,6 +460,14 @@ class Winamp extends AppBase {
         if (this.timeInterval) {
             clearInterval(this.timeInterval);
         }
+
+        // Emit pause event
+        const track = this.playlist[this.currentTrack];
+        EventBus.emit(WinampEvents.PAUSE, {
+            trackIndex: this.currentTrack,
+            trackTitle: track.title,
+            currentTime: this.currentTime
+        });
     }
 
     stop() {
@@ -454,6 +477,11 @@ class Winamp extends AppBase {
 
         const seekBar = this.getElement('#seekBar');
         if (seekBar) seekBar.value = 0;
+
+        // Emit stop event
+        EventBus.emit(WinampEvents.STOP, {
+            trackIndex: this.currentTrack
+        });
     }
 
     next() {

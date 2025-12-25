@@ -7,6 +7,7 @@ import AppBase from './AppBase.js';
 import StateManager from '../core/StateManager.js';
 import EventBus from '../core/EventBus.js';
 import FileSystemManager from '../core/FileSystemManager.js';
+import { RecycleBinEvents } from '../core/scripted-events/SemanticEvents.js';
 
 class RecycleBin extends AppBase {
     constructor() {
@@ -260,6 +261,12 @@ class RecycleBin extends AppBase {
         // Also subscribe directly to state changes for more reliable updates
         this._unsubscribeState = StateManager.subscribe('recycledItems', () => {
             this.refreshView();
+        });
+
+        // Emit opened event
+        const recycledItems = StateManager.getState('recycledItems') || [];
+        EventBus.emit(RecycleBinEvents.OPENED, {
+            itemCount: recycledItems.length
         });
     }
 
@@ -657,6 +664,13 @@ class RecycleBin extends AppBase {
         // Show notification
         this.playSound('restore');
 
+        // Emit item restored event
+        EventBus.emit(RecycleBinEvents.ITEM_RESTORED, {
+            item,
+            itemId: item.id,
+            label: item.label
+        });
+
         console.log(`[RecycleBin] Restored: ${item.label}`);
     }
 
@@ -708,6 +722,13 @@ class RecycleBin extends AppBase {
             // Refresh view
             this.refreshView();
 
+            // Emit item deleted event
+            EventBus.emit(RecycleBinEvents.ITEM_DELETED, {
+                item,
+                itemId: item.id,
+                label: item.label
+            });
+
             console.log(`[RecycleBin] Permanently deleted: ${item.label}`);
         }
     }
@@ -717,11 +738,18 @@ class RecycleBin extends AppBase {
         if (recycledItems.length === 0) return;
 
         if (confirm(`Empty the Recycle Bin?\n\nThis will permanently delete all ${recycledItems.length} item(s).\n\nThis cannot be undone.`)) {
+            const deletedCount = recycledItems.length;
+
             // Clear recycle bin
             StateManager.setState('recycledItems', [], true);
 
             // Refresh view
             this.refreshView();
+
+            // Emit emptied event
+            EventBus.emit(RecycleBinEvents.EMPTIED, {
+                deletedCount
+            });
 
             console.log('[RecycleBin] Emptied recycle bin');
         }

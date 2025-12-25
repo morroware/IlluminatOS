@@ -7,6 +7,7 @@ import AppBase from './AppBase.js';
 import WindowManager from '../core/WindowManager.js';
 import StateManager from '../core/StateManager.js';
 import EventBus from '../core/EventBus.js';
+import { TaskManagerEvents } from '../core/scripted-events/SemanticEvents.js';
 
 class TaskManager extends AppBase {
     constructor() {
@@ -328,6 +329,11 @@ class TaskManager extends AppBase {
         // Start update loop
         this.updateInterval = setInterval(() => this.update(), 1000);
         this.update();
+
+        // Emit opened event
+        EventBus.emit(TaskManagerEvents.OPENED, {
+            tab: this.currentTab
+        });
     }
 
     onClose() {
@@ -578,6 +584,13 @@ class TaskManager extends AppBase {
 
         const windowId = selected.dataset.windowId;
         if (windowId) {
+            // Emit task ended event
+            const titleEl = selected.querySelector('div:first-child');
+            EventBus.emit(TaskManagerEvents.TASK_ENDED, {
+                windowId,
+                taskName: titleEl ? titleEl.textContent.trim() : 'Unknown'
+            });
+
             WindowManager.close(windowId);
             this.update();
             this.getElement('#btn-end-task').disabled = true;

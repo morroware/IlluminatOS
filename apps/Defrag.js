@@ -4,6 +4,8 @@
  */
 
 import AppBase from './AppBase.js';
+import EventBus from '../core/EventBus.js';
+import { DefragEvents } from '../core/scripted-events/SemanticEvents.js';
 
 class Defrag extends AppBase {
     constructor() {
@@ -270,6 +272,12 @@ class Defrag extends AppBase {
             this.updateDriveInfo();
             this.generateBlockMap();
         });
+
+        // Emit opened event
+        EventBus.emit(DefragEvents.OPENED, {
+            drive: this.selectedDrive,
+            fragmentation: this.fragmentedPercent
+        });
     }
 
     onClose() {
@@ -391,6 +399,12 @@ class Defrag extends AppBase {
         this.setButtonStates(false);
         this.updateProgress(100);
         this.updateStatus(`Analysis complete. ${this.fragmentedPercent}% fragmentation found.`);
+
+        // Emit analysis complete event
+        EventBus.emit(DefragEvents.ANALYZED, {
+            drive: this.selectedDrive,
+            fragmentation: this.fragmentedPercent
+        });
     }
 
     async defragment() {
@@ -401,6 +415,12 @@ class Defrag extends AppBase {
         this.processedBlocks = 0;
         this.updateStatus('Starting defragmentation...');
         this.setButtonStates(true);
+
+        // Emit started event
+        EventBus.emit(DefragEvents.STARTED, {
+            drive: this.selectedDrive,
+            fragmentation: this.fragmentedPercent
+        });
 
         const fragmentedBlocks = this.blocks.filter(b => b.state === 'fragmented');
         const emptyBlocks = this.blocks.filter(b => b.state === 'empty');
@@ -467,6 +487,12 @@ class Defrag extends AppBase {
             this.updateFragmentationDisplay();
             this.updateStatus('Defragmentation complete! Drive is now optimized.');
             this.updateProgress(100);
+
+            // Emit completed event
+            EventBus.emit(DefragEvents.COMPLETED, {
+                drive: this.selectedDrive,
+                blocksProcessed: this.processedBlocks
+            });
         }
 
         this.isRunning = false;

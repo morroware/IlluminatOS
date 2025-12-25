@@ -236,6 +236,7 @@ export const MediaPlayerEvents = {
     SEEK: 'mediaplayer:seek',
     VOLUME_CHANGED: 'mediaplayer:volume:changed',
     TRACK_ENDED: 'mediaplayer:track:ended',
+    TRACK_CHANGED: 'mediaplayer:track:changed',
     TRACK_NEXT: 'mediaplayer:track:next',
     TRACK_PREVIOUS: 'mediaplayer:track:previous',
     PLAYLIST_LOADED: 'mediaplayer:playlist:loaded',
@@ -279,7 +280,17 @@ export const ClockEvents = {
     ALARM_SET: 'clock:alarm:set',
     ALARM_TRIGGERED: 'clock:alarm:triggered',
     ALARM_DISMISSED: 'clock:alarm:dismissed',
-    TIME_CHECKED: 'clock:time:checked'
+    ALARM_DELETED: 'clock:alarm:deleted',
+    TIME_CHECKED: 'clock:time:checked',
+    TAB_CHANGED: 'clock:tab:changed',
+    STOPWATCH_STARTED: 'clock:stopwatch:started',
+    STOPWATCH_STOPPED: 'clock:stopwatch:stopped',
+    STOPWATCH_LAP: 'clock:stopwatch:lap',
+    STOPWATCH_RESET: 'clock:stopwatch:reset',
+    TIMER_STARTED: 'clock:timer:started',
+    TIMER_PAUSED: 'clock:timer:paused',
+    TIMER_RESET: 'clock:timer:reset',
+    TIMER_COMPLETED: 'clock:timer:completed'
 };
 
 export const ExplorerEvents = {
@@ -306,6 +317,7 @@ export const TaskManagerEvents = {
     OPENED: 'taskmanager:opened',
     PROCESS_SELECTED: 'taskmanager:process:selected',
     PROCESS_KILLED: 'taskmanager:process:killed',
+    TASK_ENDED: 'taskmanager:task:ended',
     TAB_CHANGED: 'taskmanager:tab:changed',
     REFRESH: 'taskmanager:refresh',
     PRIORITY_CHANGED: 'taskmanager:priority:changed'
@@ -323,6 +335,7 @@ export const RecycleBinEvents = {
 export const FindFilesEvents = {
     OPENED: 'findfiles:opened',
     SEARCH_STARTED: 'findfiles:search:started',
+    SEARCH_COMPLETE: 'findfiles:search:complete',
     SEARCH_COMPLETED: 'findfiles:search:completed',
     RESULT_SELECTED: 'findfiles:result:selected',
     RESULT_OPENED: 'findfiles:result:opened',
@@ -336,12 +349,14 @@ export const DefragEvents = {
     PAUSED: 'defrag:paused',
     RESUMED: 'defrag:resumed',
     COMPLETED: 'defrag:completed',
-    CANCELLED: 'defrag:cancelled'
+    CANCELLED: 'defrag:cancelled',
+    ANALYZED: 'defrag:analyzed'
 };
 
 export const HelpEvents = {
     OPENED: 'help:opened',
     TOPIC_SELECTED: 'help:topic:selected',
+    TOPIC_CHANGED: 'help:topic:changed',
     SEARCH: 'help:search',
     LINK_CLICKED: 'help:link:clicked',
     BACK: 'help:back',

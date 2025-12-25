@@ -8,6 +8,8 @@
  */
 
 import AppBase from './AppBase.js';
+import EventBus from '../core/EventBus.js';
+import { ClockEvents } from '../core/scripted-events/SemanticEvents.js';
 
 class Clock extends AppBase {
     constructor() {
@@ -172,6 +174,11 @@ class Clock extends AppBase {
 
         // Check for alarms every second
         this.startAlarmChecker();
+
+        // Emit opened event
+        EventBus.emit(ClockEvents.OPENED, {
+            alarmCount: this.getInstanceState('alarms').length
+        });
     }
 
     onClose() {
@@ -190,6 +197,7 @@ class Clock extends AppBase {
     // --- Tab Management ---
 
     switchTab(tabName) {
+        const previousTab = this.getInstanceState('activeTab');
         this.setInstanceState('activeTab', tabName);
 
         this.getElements('.clock-tab').forEach(t => {
@@ -197,6 +205,12 @@ class Clock extends AppBase {
         });
         this.getElements('.clock-panel').forEach(p => {
             p.classList.toggle('active', p.id === `panel-${tabName}`);
+        });
+
+        // Emit tab changed event
+        EventBus.emit(ClockEvents.TAB_CHANGED, {
+            tab: tabName,
+            previousTab
         });
     }
 
@@ -280,14 +294,15 @@ class Clock extends AppBase {
         const label = this.getElement('#alarmLabel').value.trim();
 
         const alarms = this.getInstanceState('alarms');
-        alarms.push({
+        const newAlarm = {
             id: Date.now().toString(36),
             hour: Math.min(12, Math.max(1, hour)),
             minute: Math.min(59, Math.max(0, minute)),
             ampm,
             label: label || 'Alarm',
             enabled: true
-        });
+        };
+        alarms.push(newAlarm);
 
         this.setInstanceState('alarms', alarms);
         this.saveAlarms(alarms);
@@ -296,6 +311,16 @@ class Clock extends AppBase {
         // Reset inputs
         this.getElement('#alarmLabel').value = '';
         this.playSound('click');
+
+        // Emit alarm set event
+        EventBus.emit(ClockEvents.ALARM_SET, {
+            alarm: newAlarm,
+            hour: newAlarm.hour,
+            minute: newAlarm.minute,
+            ampm: newAlarm.ampm,
+            label: newAlarm.label,
+            totalAlarms: alarms.length
+        });
     }
 
     deleteAlarm(id) {
@@ -363,12 +388,29 @@ class Clock extends AppBase {
         }, 1000);
 
         this.setInstanceState('beepInterval', beepInterval);
+        this.setInstanceState('activeAlarm', alarm);
+
+        // Emit alarm triggered event
+        EventBus.emit(ClockEvents.ALARM_TRIGGERED, {
+            alarm,
+            label: alarm.label,
+            hour: alarm.hour,
+            minute: alarm.minute,
+            ampm: alarm.ampm
+        });
     }
 
     dismissAlarm() {
         this.getElement('#alarmAlert').classList.remove('active');
         const beepInterval = this.getInstanceState('beepInterval');
         if (beepInterval) clearInterval(beepInterval);
+
+        const activeAlarm = this.getInstanceState('activeAlarm');
+        // Emit alarm dismissed event
+        EventBus.emit(ClockEvents.ALARM_DISMISSED, {
+            alarm: activeAlarm
+        });
+        this.setInstanceState('activeAlarm', null);
     }
 
     loadAlarms() {
@@ -400,6 +442,12 @@ class Clock extends AppBase {
             this.setInstanceState('stopwatchRunning', false);
             this.getElement('#swStart').textContent = '▶ Start';
             this.getElement('#swLap').disabled = true;
+
+            // Emit stopwatch stopped event
+            EventBus.emit(ClockEvents.STOPWATCH_STOPPED, {
+                time: this.getInstanceState('stopwatchTime'),
+                laps: this.getInstanceState('stopwatchLaps').length
+            });
         } else {
             // Start
             const startTime = Date.now() - this.getInstanceState('stopwatchTime');
@@ -413,6 +461,11 @@ class Clock extends AppBase {
             this.setInstanceState('stopwatchRunning', true);
             this.getElement('#swStart').textContent = '⏸ Stop';
             this.getElement('#swLap').disabled = false;
+
+            // Emit stopwatch started event
+            EventBus.emit(ClockEvents.STOPWATCH_STARTED, {
+                time: this.getInstanceState('stopwatchTime')
+            });
         }
     }
 
@@ -422,11 +475,21 @@ class Clock extends AppBase {
         laps.push(time);
         this.setInstanceState('stopwatchLaps', laps);
         this.updateLapList();
+
+        // Emit lap event
+        EventBus.emit(ClockEvents.STOPWATCH_LAP, {
+            lapNumber: laps.length,
+            time,
+            lapTime: laps.length > 1 ? time - laps[laps.length - 2] : time
+        });
     }
 
     resetStopwatch() {
         const interval = this.getInstanceState('stopwatchInterval');
         if (interval) clearInterval(interval);
+
+        const previousTime = this.getInstanceState('stopwatchTime');
+        const previousLaps = this.getInstanceState('stopwatchLaps').length;
 
         this.setInstanceState('stopwatchTime', 0);
         this.setInstanceState('stopwatchRunning', false);
@@ -437,6 +500,12 @@ class Clock extends AppBase {
         this.getElement('#swStart').textContent = '▶ Start';
         this.getElement('#swLap').disabled = true;
         this.getElement('#lapList').innerHTML = '<div class="lap-placeholder">Lap times will appear here</div>';
+
+        // Emit reset event
+        EventBus.emit(ClockEvents.STOPWATCH_RESET, {
+            previousTime,
+            previousLaps
+        });
     }
 
     updateStopwatchDisplay(ms) {
@@ -488,6 +557,12 @@ class Clock extends AppBase {
             if (interval) clearInterval(interval);
             this.setInstanceState('timerRunning', false);
             this.getElement('#timerStart').textContent = '▶ Resume';
+
+            // Emit timer paused event
+            EventBus.emit(ClockEvents.TIMER_PAUSED, {
+                remaining: this.getInstanceState('timerTime'),
+                initial: this.getInstanceState('timerInitial')
+            });
         } else {
             // Start
             let remaining = this.getInstanceState('timerTime');
@@ -521,12 +596,20 @@ class Clock extends AppBase {
             this.setInstanceState('timerInterval', interval);
             this.setInstanceState('timerRunning', true);
             this.getElement('#timerStart').textContent = '⏸ Pause';
+
+            // Emit timer started event
+            EventBus.emit(ClockEvents.TIMER_STARTED, {
+                duration: this.getInstanceState('timerInitial'),
+                remaining: this.getInstanceState('timerTime')
+            });
         }
     }
 
     resetTimer() {
         const interval = this.getInstanceState('timerInterval');
         if (interval) clearInterval(interval);
+
+        const previousInitial = this.getInstanceState('timerInitial');
 
         this.setInstanceState('timerTime', 0);
         this.setInstanceState('timerInitial', 0);
@@ -536,6 +619,11 @@ class Clock extends AppBase {
         this.updateTimerDisplay(0);
         this.getElement('#timerStart').textContent = '▶ Start';
         this.getElement('#timerProgress').style.width = '0%';
+
+        // Emit timer reset event
+        EventBus.emit(ClockEvents.TIMER_RESET, {
+            previousDuration: previousInitial
+        });
     }
 
     setTimerPreset(seconds) {
@@ -579,11 +667,17 @@ class Clock extends AppBase {
         const interval = this.getInstanceState('timerInterval');
         if (interval) clearInterval(interval);
 
+        const duration = this.getInstanceState('timerInitial');
         this.setInstanceState('timerRunning', false);
         this.getElement('#timerStart').textContent = '▶ Start';
 
         // Play alarm sound
         this.playSound('notify');
+
+        // Emit timer completed event
+        EventBus.emit(ClockEvents.TIMER_COMPLETED, {
+            duration
+        });
 
         // Flash the display
         const display = this.getElement('#timerDisplay');

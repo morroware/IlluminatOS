@@ -7,6 +7,7 @@ import AppBase from './AppBase.js';
 import EventBus from '../core/EventBus.js';
 import FeatureRegistry, { FEATURE_CATEGORIES } from '../core/FeatureRegistry.js';
 import WebAdminAuth from '../core/WebAdminAuth.js';
+import { FeaturesSettingsEvents } from '../core/scripted-events/SemanticEvents.js';
 
 class FeaturesSettings extends AppBase {
     constructor() {
@@ -25,6 +26,9 @@ class FeaturesSettings extends AppBase {
         const features = FeatureRegistry.getAll();
         console.log('[FeaturesSettings] Features from registry:', features);
         console.log('[FeaturesSettings] Feature count:', features.length);
+
+        // Emit opened event
+        EventBus.emit(FeaturesSettingsEvents.OPENED, { featureCount: features.length });
 
         // Debug: If no features, log additional info
         if (features.length === 0) {
@@ -423,6 +427,9 @@ class FeaturesSettings extends AppBase {
                     if (card) {
                         card.classList.toggle('disabled', !enabled);
                     }
+
+                    // Emit feature toggled event
+                    EventBus.emit(FeaturesSettingsEvents.FEATURE_TOGGLED, { featureId, enabled });
                 } catch (error) {
                     console.error('Failed to toggle feature:', error);
                     // Revert the toggle
@@ -522,6 +529,7 @@ class FeaturesSettings extends AppBase {
     updateFeatureSetting(featureId, key, value) {
         try {
             FeatureRegistry.setFeatureConfig(featureId, key, value);
+            EventBus.emit(FeaturesSettingsEvents.CONFIG_CHANGED, { featureId, key, value });
         } catch (error) {
             console.error('Failed to update setting:', error);
         }

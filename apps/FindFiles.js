@@ -7,6 +7,7 @@ import AppBase from './AppBase.js';
 import FileSystemManager from '../core/FileSystemManager.js';
 import AppRegistry from './AppRegistry.js';
 import EventBus from '../core/EventBus.js';
+import { FindFilesEvents } from '../core/scripted-events/SemanticEvents.js';
 
 class FindFiles extends AppBase {
     constructor() {
@@ -282,6 +283,9 @@ class FindFiles extends AppBase {
                 this.sortResults(header.dataset.sort);
             });
         });
+
+        // Emit opened event
+        EventBus.emit(FindFilesEvents.OPENED, {});
     }
 
     async startSearch() {
@@ -323,6 +327,13 @@ class FindFiles extends AppBase {
         this.isSearching = false;
         this.getElement('#btn-find-now').disabled = false;
         this.getElement('#btn-stop').disabled = true;
+
+        // Emit search complete event
+        EventBus.emit(FindFilesEvents.SEARCH_COMPLETE, {
+            query: searchName,
+            resultsCount: this.searchResults.length,
+            location
+        });
     }
 
     async searchDirectory(path, pattern, contentSearch, includeSubfolders, caseSensitive) {
@@ -479,6 +490,13 @@ class FindFiles extends AppBase {
     }
 
     openResult(result) {
+        // Emit result opened event
+        EventBus.emit(FindFilesEvents.RESULT_OPENED, {
+            name: result.name,
+            path: result.path.join('/'),
+            isDirectory: result.isDirectory
+        });
+
         if (result.isDirectory) {
             // Open in My Computer
             AppRegistry.launch('mycomputer', { path: result.path });
