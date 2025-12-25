@@ -678,95 +678,48 @@ class StartMenuRendererClass {
 
     /**
      * Position a submenu so it stays on screen
-     * Uses fixed positioning to avoid clipping by overflow:auto parents
      * @param {HTMLElement} trigger - The parent menu item
      * @param {HTMLElement} submenu - The submenu element
      */
     positionSubmenu(trigger, submenu) {
-        // Viewport dimensions
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
         const taskbarHeight = 50;
         const maxBottom = viewportHeight - taskbarHeight;
 
-        // Get trigger name for debugging
         const triggerName = trigger.querySelector('span:not(.submenu-arrow):not(.start-menu-icon)')?.textContent || 'unknown';
 
-        // Reset any previous positioning constraints
+        // Reset constraints
         submenu.style.maxHeight = '';
 
-        // Determine horizontal position based on nesting level
-        let left, top;
+        // Simply use getBoundingClientRect for the trigger
+        const triggerRect = trigger.getBoundingClientRect();
 
-        // Check if this trigger is inside another submenu (nested) or in the main start menu (first level)
-        const parentSubmenu = trigger.closest('.start-submenu');
+        // Position to the right of the trigger, aligned with its top
+        let left = triggerRect.right;
+        let top = triggerRect.top;
 
-        if (parentSubmenu) {
-            // NESTED submenu - position to the right of the parent submenu
-            const parentRect = parentSubmenu.getBoundingClientRect();
-            left = parentRect.right;
+        console.log(`[Submenu] "${triggerName}" triggerRect: left=${triggerRect.left}, top=${triggerRect.top}, right=${triggerRect.right}, bottom=${triggerRect.bottom}`);
 
-            // For vertical position, use trigger's position within parent, accounting for scroll
-            // offsetTop gives position in scrollable content, subtract scrollTop for visible position
-            const triggerOffsetInParent = trigger.offsetTop - parentSubmenu.scrollTop;
-            top = parentRect.top + triggerOffsetInParent;
-
-            console.log(`[Submenu] "${triggerName}" is NESTED. Parent top: ${parentRect.top}, triggerOffset: ${trigger.offsetTop}, scrollTop: ${parentSubmenu.scrollTop}, calculated top: ${top}`);
-        } else {
-            // FIRST-LEVEL submenu - position to the right of the start menu
-            const startMenu = document.getElementById('startMenu');
-            const triggerRect = trigger.getBoundingClientRect();
-
-            if (startMenu) {
-                const startMenuRect = startMenu.getBoundingClientRect();
-                left = startMenuRect.right;
-                console.log(`[Submenu] "${triggerName}" is FIRST-LEVEL. StartMenu right: ${startMenuRect.right}, trigger top: ${triggerRect.top}`);
-            } else {
-                left = triggerRect.right;
-            }
-            top = triggerRect.top;
-        }
-
-        // Now measure submenu dimensions (show it at calculated position first)
-        submenu.style.left = `${Math.round(left)}px`;
-        submenu.style.top = `${Math.round(top)}px`;
+        // Show submenu to measure it
         submenu.style.visibility = 'hidden';
         submenu.style.display = 'block';
+        submenu.style.left = `${left}px`;
+        submenu.style.top = `${top}px`;
 
         const submenuWidth = submenu.offsetWidth;
         const submenuHeight = submenu.offsetHeight;
 
-        // Check horizontal overflow - if goes off right edge, flip to left side
+        // Horizontal overflow - flip to left if needed
         if (left + submenuWidth > viewportWidth - 4) {
-            console.log(`[Submenu] "${triggerName}" overflows right, flipping left`);
-            if (parentSubmenu) {
-                const parentRect = parentSubmenu.getBoundingClientRect();
-                left = parentRect.left - submenuWidth;
-            } else {
-                const startMenu = document.getElementById('startMenu');
-                if (startMenu) {
-                    const startMenuRect = startMenu.getBoundingClientRect();
-                    left = startMenuRect.left - submenuWidth;
-                }
-            }
-            if (left < 4) {
-                left = 4;
-            }
+            left = triggerRect.left - submenuWidth;
+            if (left < 4) left = 4;
         }
 
-        // Check vertical overflow - if goes below taskbar, shift up
+        // Vertical overflow - shift up if needed
         if (top + submenuHeight > maxBottom) {
-            console.log(`[Submenu] "${triggerName}" overflows bottom (${top + submenuHeight} > ${maxBottom}), shifting up`);
             top = maxBottom - submenuHeight;
-        }
-
-        // If shifted too far up (off top of screen), pin to top
-        if (top < 4) {
-            top = 4;
-            const availableHeight = maxBottom - 8;
-            if (submenuHeight > availableHeight) {
-                submenu.style.maxHeight = `${availableHeight}px`;
-            }
+            if (top < 4) top = 4;
         }
 
         // Apply final position
@@ -774,7 +727,7 @@ class StartMenuRendererClass {
         submenu.style.top = `${Math.round(top)}px`;
         submenu.style.visibility = 'visible';
 
-        console.log(`[Submenu] "${triggerName}" final position: left=${Math.round(left)}, top=${Math.round(top)}, size=${submenuWidth}x${submenuHeight}`);
+        console.log(`[Submenu] "${triggerName}" final: left=${Math.round(left)}, top=${Math.round(top)}, size=${submenuWidth}x${submenuHeight}`);
     }
 
     /**
