@@ -603,7 +603,9 @@ class StartMenuRendererClass {
     positionSubmenu(trigger, submenu) {
         const triggerRect = trigger.getBoundingClientRect();
         const viewportHeight = window.innerHeight;
-        const viewportWidth = window.innerWidth;
+        // Safeguard: viewport width should never be less than 800 for desktop
+        // This fixes issues where innerWidth reports incorrect values during page load
+        const viewportWidth = Math.max(window.innerWidth, 800);
         const taskbarHeight = 50;
         const availableHeight = viewportHeight - taskbarHeight;
 
