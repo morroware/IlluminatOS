@@ -691,21 +691,20 @@ class StartMenuRendererClass {
         const viewportHeight = window.innerHeight;
         const taskbarHeight = 50;
 
+        // Get trigger name for debugging
+        const triggerName = trigger.querySelector('span:not(.submenu-arrow):not(.start-menu-icon)')?.textContent || 'unknown';
+
         // Reset any previous positioning constraints
         submenu.style.maxHeight = '';
 
-        // Calculate submenu dimensions by temporarily showing it at origin
-        submenu.style.left = '0px';
-        submenu.style.top = '0px';
+        // Calculate submenu dimensions by temporarily showing it
         submenu.style.visibility = 'hidden';
         submenu.style.display = 'block';
+        submenu.style.left = '0px';
+        submenu.style.top = '0px';
 
         const submenuWidth = submenu.offsetWidth;
         const submenuHeight = submenu.offsetHeight;
-
-        // Hide again
-        submenu.style.display = '';
-        submenu.style.visibility = '';
 
         // Determine horizontal position based on nesting level
         let left, top;
@@ -718,20 +717,24 @@ class StartMenuRendererClass {
             const parentRect = parentSubmenu.getBoundingClientRect();
             left = parentRect.right;
             top = triggerRect.top;
+            console.log(`[Submenu] "${triggerName}" is NESTED. Parent right: ${parentRect.right}, trigger top: ${triggerRect.top}`);
         } else {
             // FIRST-LEVEL submenu - position to the right of the start menu
             const startMenu = document.getElementById('startMenu');
             if (startMenu) {
                 const startMenuRect = startMenu.getBoundingClientRect();
                 left = startMenuRect.right;
+                console.log(`[Submenu] "${triggerName}" is FIRST-LEVEL. StartMenu right: ${startMenuRect.right}, trigger top: ${triggerRect.top}`);
             } else {
                 left = triggerRect.right;
+                console.log(`[Submenu] "${triggerName}" - no startMenu found, using trigger right: ${triggerRect.right}`);
             }
             top = triggerRect.top;
         }
 
         // Check horizontal overflow - if goes off right edge, flip to left side
         if (left + submenuWidth > viewportWidth - 4) {
+            console.log(`[Submenu] "${triggerName}" overflows right, flipping left`);
             if (parentSubmenu) {
                 const parentRect = parentSubmenu.getBoundingClientRect();
                 left = parentRect.left - submenuWidth;
@@ -752,6 +755,7 @@ class StartMenuRendererClass {
         // Check vertical overflow - if goes below taskbar, shift up
         const maxBottom = viewportHeight - taskbarHeight;
         if (top + submenuHeight > maxBottom) {
+            console.log(`[Submenu] "${triggerName}" overflows bottom (${top + submenuHeight} > ${maxBottom}), shifting up`);
             top = maxBottom - submenuHeight;
         }
 
@@ -767,6 +771,9 @@ class StartMenuRendererClass {
         // Apply final position
         submenu.style.left = `${Math.round(left)}px`;
         submenu.style.top = `${Math.round(top)}px`;
+        submenu.style.visibility = 'visible';
+
+        console.log(`[Submenu] "${triggerName}" final position: left=${Math.round(left)}, top=${Math.round(top)}, size=${submenuWidth}x${submenuHeight}`);
     }
 
     /**

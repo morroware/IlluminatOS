@@ -1087,13 +1087,7 @@ body {
 
 /* JavaScript controls visibility via .submenu-open class */
 .start-submenu.submenu-open {
-    display: block;
-}
-
-/* Highlight the trigger when its submenu is open */
-.submenu-trigger:has(> .start-submenu.submenu-open) {
-    background: var(--win95-blue);
-    color: white;
+    display: block !important;
 }
 
 /* Scrollable submenus when content exceeds available space */
