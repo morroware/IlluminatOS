@@ -4,7 +4,7 @@
  * All window operations go through this manager
  */
 
-import EventBus from './EventBus.js';
+import EventBus, { Events } from './EventBus.js';
 import StateManager from './StateManager.js';
 import { WindowEvents } from './scripted-events/SemanticEvents.js';
 
