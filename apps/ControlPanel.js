@@ -8,6 +8,7 @@ import AppRegistry from './AppRegistry.js';
 import StateManager from '../core/StateManager.js';
 import StorageManager from '../core/StorageManager.js';
 import EventBus from '../core/EventBus.js';
+import { ControlPanelEvents } from '../core/scripted-events/SemanticEvents.js';
 
 class ControlPanel extends AppBase {
     constructor() {
@@ -27,6 +28,9 @@ class ControlPanel extends AppBase {
         const settings = StateManager.getState('settings');
         const desktopBg = StorageManager.get('desktopBg') || '#008080';
         console.log('[ControlPanel] Rendering with settings:', settings);
+
+        // Emit opened event
+        EventBus.emit(ControlPanelEvents.OPENED, { settings });
 
         return `
             <style>
@@ -359,6 +363,7 @@ class ControlPanel extends AppBase {
                 StorageManager.set('desktopBg', color);
                 document.body.style.setProperty('--desktop-bg', color);
                 EventBus.emit('desktop:bg-change', { color });
+                EventBus.emit(ControlPanelEvents.SETTING_CHANGED, { setting: 'backgroundColor', value: color });
             });
         }
 
@@ -373,6 +378,7 @@ class ControlPanel extends AppBase {
                     overlay.style.display = enabled ? 'block' : 'none';
                 }
                 e.target.nextElementSibling.textContent = enabled ? 'On' : 'Off';
+                EventBus.emit(ControlPanelEvents.SETTING_CHANGED, { setting: 'crtEffect', value: enabled });
             });
         }
 
@@ -383,6 +389,7 @@ class ControlPanel extends AppBase {
                 const enabled = e.target.checked;
                 StateManager.setState('settings.sound', enabled, true);
                 e.target.nextElementSibling.textContent = enabled ? 'On' : 'Off';
+                EventBus.emit(ControlPanelEvents.SETTING_CHANGED, { setting: 'sound', value: enabled });
             });
         }
 
@@ -394,6 +401,7 @@ class ControlPanel extends AppBase {
                 StateManager.setState('settings.pet.enabled', enabled, true);
                 EventBus.emit('pet:toggle', { enabled });
                 e.target.nextElementSibling.textContent = enabled ? 'On' : 'Off';
+                EventBus.emit(ControlPanelEvents.SETTING_CHANGED, { setting: 'pet.enabled', value: enabled });
             });
         }
 
@@ -408,6 +416,7 @@ class ControlPanel extends AppBase {
                 // Update selection
                 petOptions.forEach(opt => opt.classList.remove('selected'));
                 e.currentTarget.classList.add('selected');
+                EventBus.emit(ControlPanelEvents.SETTING_CHANGED, { setting: 'pet.type', value: pet });
             });
         });
 
@@ -418,6 +427,7 @@ class ControlPanel extends AppBase {
                 const delay = parseInt(e.target.value);
                 StateManager.setState('settings.screensaverDelay', delay, true);
                 EventBus.emit('screensaver:update-delay', { delay });
+                EventBus.emit(ControlPanelEvents.SETTING_CHANGED, { setting: 'screensaverDelay', value: delay });
             });
         }
 
@@ -433,6 +443,7 @@ class ControlPanel extends AppBase {
                 console.log('[ControlPanel] Settings link clicked:', appId);
                 if (appId) {
                     AppRegistry.launch(appId);
+                    EventBus.emit(ControlPanelEvents.APPLET_OPENED, { applet: appId });
                 }
             });
         });

@@ -7,6 +7,7 @@ import AppBase from './AppBase.js';
 import StateManager from '../core/StateManager.js';
 import StorageManager from '../core/StorageManager.js';
 import EventBus from '../core/EventBus.js';
+import { DisplayPropertiesEvents } from '../core/scripted-events/SemanticEvents.js';
 
 // Color scheme definitions
 const COLOR_SCHEMES = {
@@ -146,6 +147,9 @@ class DisplayProperties extends AppBase {
     }
 
     onOpen() {
+        // Emit opened event
+        EventBus.emit(DisplayPropertiesEvents.OPENED, {});
+
         // Load all saved settings
         const currentBg = StorageManager.get('desktopBg') || '#008080';
         const wallpaper = StorageManager.get('desktopWallpaper') ?? 'space';
@@ -648,6 +652,7 @@ class DisplayProperties extends AppBase {
                 item.classList.add('selected');
                 this.selectedWallpaper = item.dataset.wallpaper;
                 this.updateBackgroundPreview();
+                EventBus.emit(DisplayPropertiesEvents.WALLPAPER_CHANGED, { wallpaper: item.dataset.wallpaper });
             });
         });
 
@@ -659,6 +664,7 @@ class DisplayProperties extends AppBase {
                 swatch.classList.add('selected');
                 this.selectedColor = swatch.dataset.color;
                 this.updateBackgroundPreview();
+                EventBus.emit(DisplayPropertiesEvents.COLORS_CHANGED, { color: swatch.dataset.color });
             });
         });
 
@@ -670,6 +676,7 @@ class DisplayProperties extends AppBase {
                 item.classList.add('selected');
                 this.colorScheme = item.dataset.scheme;
                 this.updateAppearancePreview();
+                EventBus.emit(DisplayPropertiesEvents.THEME_CHANGED, { scheme: item.dataset.scheme });
             });
         });
 
@@ -679,6 +686,7 @@ class DisplayProperties extends AppBase {
             this.addHandler(screensaverType, 'change', (e) => {
                 this.screensaverType = e.target.value;
                 this.updateScreensaverPreview();
+                EventBus.emit(DisplayPropertiesEvents.SCREENSAVER_CHANGED, { type: e.target.value });
             });
         }
 
@@ -886,6 +894,13 @@ class DisplayProperties extends AppBase {
             smoothScrolling: this.smoothScrolling
         });
         EventBus.emit('sound:play', { type: 'click' });
+
+        // Emit wallpaper applied event
+        EventBus.emit(DisplayPropertiesEvents.WALLPAPER_APPLIED, {
+            color: this.selectedColor,
+            wallpaper: this.selectedWallpaper,
+            colorScheme: this.colorScheme
+        });
     }
 }
 

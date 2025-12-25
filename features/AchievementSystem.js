@@ -6,6 +6,7 @@
 import FeatureBase from '../core/FeatureBase.js';
 import EventBus, { Events } from '../core/EventBus.js';
 import StateManager from '../core/StateManager.js';
+import { AchievementEvents } from '../core/scripted-events/SemanticEvents.js';
 
 // Feature metadata
 const FEATURE_METADATA = {
@@ -119,6 +120,10 @@ class AchievementSystem extends FeatureBase {
         if (this.getConfig('playSound', true)) {
             EventBus.emit(Events.SOUND_PLAY, { type: 'achievement' });
         }
+
+        // Emit semantic event
+        EventBus.emit(AchievementEvents.UNLOCKED, { id, name: achievement.name, icon: achievement.icon });
+        EventBus.emit(AchievementEvents.DISPLAYED, { id, name: achievement.name });
 
         // Trigger hook for other features to react
         this.triggerHook('achievement:unlocked', { id, achievement });

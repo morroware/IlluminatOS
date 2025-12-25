@@ -8,6 +8,7 @@ import StateManager from '../core/StateManager.js';
 import StorageManager from '../core/StorageManager.js';
 import EventBus from '../core/EventBus.js';
 import WebAdminAuth from '../core/WebAdminAuth.js';
+import { AdminPanelEvents } from '../core/scripted-events/SemanticEvents.js';
 
 class AdminPanel extends AppBase {
     constructor() {
@@ -104,6 +105,9 @@ class AdminPanel extends AppBase {
     }
 
     renderAdminInterface() {
+        // Emit opened event when admin interface is rendered (user authenticated)
+        EventBus.emit(AdminPanelEvents.OPENED, { authenticated: true });
+
         const icons = StateManager.getState('icons') || [];
         const achievements = StateManager.getState('achievements') || [];
 
@@ -383,6 +387,7 @@ class AdminPanel extends AppBase {
             if (WebAdminAuth.authenticateWebAdmin(password)) {
                 // Also set OS admin flag for compatibility
                 StateManager.setState('user.isAdmin', true);
+                EventBus.emit(AdminPanelEvents.ACTION, { action: 'login_success' });
                 this.setContent(this.renderAdminInterface());
             } else {
                 errorDiv.style.display = 'block';
@@ -540,7 +545,8 @@ class AdminPanel extends AppBase {
             newIcon.url = this.getElement('#icon-url').value;
         }
 
-        if (editingIndex !== null) {
+        const isEdit = editingIndex !== null;
+        if (isEdit) {
             icons[editingIndex] = newIcon;
         } else {
             icons.push(newIcon);
@@ -548,6 +554,10 @@ class AdminPanel extends AppBase {
 
         StateManager.setState('icons', icons, true);
         EventBus.emit('desktop:refresh');
+        EventBus.emit(AdminPanelEvents.ACTION, {
+            action: isEdit ? 'icon_edited' : 'icon_added',
+            icon: newIcon
+        });
         this.setContent(this.renderAdminInterface());
     }
 
@@ -560,6 +570,7 @@ class AdminPanel extends AppBase {
                     WebAdminAuth.setAdminPassword(password);
                     alert('Password set successfully!');
                     this.getElement('#new-password').value = '';
+                    EventBus.emit(AdminPanelEvents.ACTION, { action: 'password_set' });
                 }
             });
         }
@@ -587,6 +598,7 @@ class AdminPanel extends AppBase {
                 ];
                 StateManager.setState('achievements', allAchievements, true);
                 alert('All achievements unlocked!');
+                EventBus.emit(AdminPanelEvents.ACTION, { action: 'achievements_unlocked_all', count: allAchievements.length });
                 this.setContent(this.renderAdminInterface());
             });
         }
@@ -608,6 +620,7 @@ class AdminPanel extends AppBase {
             this.addHandler(consoleBtn, 'click', () => {
                 console.log('IlluminatOS! State:', StateManager.exportState());
                 alert('State logged to console. Press F12 to view.');
+                EventBus.emit(AdminPanelEvents.DIAGNOSTIC_RUN, { type: 'console_export' });
             });
         }
 
@@ -623,6 +636,7 @@ class AdminPanel extends AppBase {
             this.addHandler(clearAllBtn, 'click', () => {
                 if (confirm('WARNING: This will erase ALL data and reset IlluminatOS! to factory defaults. Continue?')) {
                     if (confirm('Are you absolutely sure? This cannot be undone.')) {
+                        EventBus.emit(AdminPanelEvents.RESET_ALL, {});
                         StateManager.reset();
                     }
                 }

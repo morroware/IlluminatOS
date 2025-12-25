@@ -8,6 +8,7 @@
 import FeatureBase from '../core/FeatureBase.js';
 import EventBus, { Events } from '../core/EventBus.js';
 import StateManager from '../core/StateManager.js';
+import { DesktopPetEvents } from '../core/scripted-events/SemanticEvents.js';
 
 // Feature metadata
 const FEATURE_METADATA = {
@@ -225,6 +226,12 @@ class DesktopPet extends FeatureBase {
         // Double-click for fortune
         this.addHandler(this.container, 'dblclick', () => {
             this.showFortune();
+            EventBus.emit(DesktopPetEvents.DOUBLE_CLICKED, { x: this.x, y: this.y });
+        });
+
+        // Single-click event
+        this.addHandler(this.container, 'click', () => {
+            EventBus.emit(DesktopPetEvents.CLICKED, { x: this.x, y: this.y, state: this.state });
         });
     }
 
@@ -242,6 +249,9 @@ class DesktopPet extends FeatureBase {
         if (!this.animationId) {
             this.animate();
         }
+
+        // Emit spawned event
+        EventBus.emit(DesktopPetEvents.SPAWNED, { x: this.x, y: this.y });
     }
 
     hide() {
@@ -272,6 +282,7 @@ class DesktopPet extends FeatureBase {
         this.vx = 0;
         this.vy = 0;
         this.container.style.cursor = 'grabbing';
+        EventBus.emit(DesktopPetEvents.DRAGGED, { x: this.x, y: this.y });
     }
 
     updateDrag(e) {
@@ -287,6 +298,7 @@ class DesktopPet extends FeatureBase {
         this.container.style.cursor = 'pointer';
         this.state = STATES.FALLING;
         this.vy = 2; // Small drop velocity
+        EventBus.emit(DesktopPetEvents.FELL, { x: this.x, y: this.y });
     }
 
     // Animation loop

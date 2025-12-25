@@ -15,6 +15,7 @@
 import FeatureBase from '../core/FeatureBase.js';
 import EventBus, { Events } from '../core/EventBus.js';
 import StateManager from '../core/StateManager.js';
+import { SoundSystemEvents } from '../core/scripted-events/SemanticEvents.js';
 
 // Feature metadata
 const FEATURE_METADATA = {
@@ -196,6 +197,7 @@ class SoundSystem extends FeatureBase {
         StateManager.setState('settings.volume', this.volume, true);
         this.setConfig('masterVolume', this.volume);
         EventBus.emit(Events.VOLUME_CHANGE, { volume: this.volume });
+        EventBus.emit(SoundSystemEvents.VOLUME_CHANGED, { volume: this.volume });
 
         // Trigger hook for volume change
         this.triggerHook('volume:changed', { volume: this.volume });
@@ -277,9 +279,11 @@ class SoundSystem extends FeatureBase {
 
             await audio.play();
             this.mp3Available.set(src, true);
+            EventBus.emit(SoundSystemEvents.PLAYED, { src });
             return true;
         } catch (e) {
             this.mp3Available.set(src, false);
+            EventBus.emit(SoundSystemEvents.FAILED, { src, error: e.message });
             return false;
         }
     }

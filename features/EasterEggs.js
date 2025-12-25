@@ -6,6 +6,7 @@
 import FeatureBase from '../core/FeatureBase.js';
 import EventBus, { Events } from '../core/EventBus.js';
 import StateManager from '../core/StateManager.js';
+import { EasterEggEvents } from '../core/scripted-events/SemanticEvents.js';
 
 // Feature metadata
 const FEATURE_METADATA = {
@@ -143,6 +144,8 @@ class EasterEggs extends FeatureBase {
 
         StateManager.unlockAchievement('konami_master');
         EventBus.emit(Events.SOUND_PLAY, { type: 'startup' });
+        EventBus.emit(EasterEggEvents.KONAMI, {});
+        EventBus.emit(EasterEggEvents.FOUND, { name: 'konami' });
 
         // Enable pet
         EventBus.emit(Events.PET_TOGGLE, { enabled: true });
@@ -231,6 +234,8 @@ class EasterEggs extends FeatureBase {
         document.body.classList.add('disco-mode');
         StateManager.unlockAchievement('disco_fever');
         EventBus.emit(Events.SOUND_PLAY, { type: 'secret' });
+        EventBus.emit(EasterEggEvents.DISCO, {});
+        EventBus.emit(EasterEggEvents.FOUND, { name: 'disco' });
 
         setTimeout(() => {
             document.body.classList.remove('disco-mode');
@@ -249,6 +254,8 @@ class EasterEggs extends FeatureBase {
         StateManager.unlockAchievement('matrix_mode');
         EventBus.emit(Events.SOUND_PLAY, { type: 'secret' });
         EventBus.emit('terminal:matrix', {});
+        EventBus.emit(EasterEggEvents.MATRIX, {});
+        EventBus.emit(EasterEggEvents.FOUND, { name: 'matrix' });
 
         // Trigger hook
         this.triggerHook('easter-egg:matrix', {});

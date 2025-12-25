@@ -16,6 +16,7 @@ import EventBus, { Events } from '../core/EventBus.js';
 import SoundSystem from '../features/SoundSystem.js';
 import FileSystemManager from '../core/FileSystemManager.js';
 import StorageManager from '../core/StorageManager.js';
+import { MediaPlayerEvents } from '../core/scripted-events/SemanticEvents.js';
 
 class MediaPlayer extends AppBase {
     constructor() {
@@ -178,6 +179,11 @@ class MediaPlayer extends AppBase {
         // Update UI state
         this.updateShuffleButton();
         this.updateRepeatButton();
+
+        // Emit opened event
+        EventBus.emit(MediaPlayerEvents.OPENED, {
+            playlistCount: this.getInstanceState('playlist').length
+        });
     }
 
     escapeHtml(text) {
@@ -199,9 +205,19 @@ class MediaPlayer extends AppBase {
             if (audio.paused) {
                 audio.play().catch(e => this.setStatus('Playback error'));
                 this.setInstanceState('playing', true);
+                // Emit play event
+                EventBus.emit(MediaPlayerEvents.PLAY, {
+                    trackIndex: this.getInstanceState('currentTrack'),
+                    trackName: this.getInstanceState('playlist')[this.getInstanceState('currentTrack')]?.name
+                });
             } else {
                 audio.pause();
                 this.setInstanceState('playing', false);
+                // Emit pause event
+                EventBus.emit(MediaPlayerEvents.PAUSE, {
+                    trackIndex: this.getInstanceState('currentTrack'),
+                    currentTime: audio.currentTime
+                });
             }
             this.updatePlayButton();
             this.updateVisualizer();
@@ -260,6 +276,12 @@ class MediaPlayer extends AppBase {
 
             audio.addEventListener('canplay', () => {
                 this.setStatus(`Now playing: ${track.name}`);
+                // Emit track changed event
+                EventBus.emit(MediaPlayerEvents.TRACK_CHANGED, {
+                    trackIndex,
+                    trackName: track.name,
+                    src: track.src
+                });
             });
 
             this.setInstanceState('audio', audio);
@@ -297,6 +319,11 @@ class MediaPlayer extends AppBase {
         this.updateVisualizer();
         this.updateProgress(0, 0);
         this.setStatus('Stopped');
+
+        // Emit stop event
+        EventBus.emit(MediaPlayerEvents.STOP, {
+            trackIndex: this.getInstanceState('currentTrack')
+        });
     }
 
     prev() {

@@ -4,6 +4,8 @@
  */
 
 import AppBase from './AppBase.js';
+import EventBus from '../core/EventBus.js';
+import { ZorkEvents } from '../core/scripted-events/SemanticEvents.js';
 
 class Zork extends AppBase {
     constructor() {
@@ -143,6 +145,11 @@ class Zork extends AppBase {
 
         // Show intro
         this.showIntro();
+
+        // Emit started event
+        EventBus.emit(ZorkEvents.STARTED, {
+            room: this.currentRoom
+        });
     }
 
     onFocus() {
@@ -664,6 +671,14 @@ Release 88 / Serial number 840726
         this.moves++;
         this.updateScore();
 
+        // Emit command event
+        EventBus.emit(ZorkEvents.COMMAND, {
+            command: input,
+            room: this.currentRoom,
+            moves: this.moves,
+            score: this.score
+        });
+
         // Lantern burns down
         if (this.lanternOn) {
             this.lanternLife--;
@@ -896,7 +911,16 @@ Release 88 / Serial number 840726
             return;
         }
 
+        const previousRoom = this.currentRoom;
         this.currentRoom = exit;
+
+        // Emit room entered event
+        EventBus.emit(ZorkEvents.ROOM_ENTERED, {
+            room: this.currentRoom,
+            previousRoom,
+            roomName: this.rooms[this.currentRoom].name
+        });
+
         this.look();
     }
 
@@ -1089,6 +1113,13 @@ Release 88 / Serial number 840726
 
         this.inventory.push(objId);
         this.print(`Taken.`);
+
+        // Emit item taken event
+        EventBus.emit(ZorkEvents.ITEM_TAKEN, {
+            item: objId,
+            itemName: obj.name,
+            room: this.currentRoom
+        });
 
         // Award points for treasures
         if (obj.points && !obj.pointsAwarded) {

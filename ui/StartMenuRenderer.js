@@ -6,6 +6,7 @@
 import EventBus, { Events } from '../core/EventBus.js';
 import StateManager from '../core/StateManager.js';
 import AppRegistry from '../apps/AppRegistry.js';
+import { StartMenuEvents } from '../core/scripted-events/SemanticEvents.js';
 
 class StartMenuRendererClass {
     constructor() {
@@ -81,10 +82,12 @@ class StartMenuRendererClass {
 
         if (appItem) {
             e.stopPropagation();
+            EventBus.emit(StartMenuEvents.ITEM_CLICKED, { appId: appItem.dataset.app });
             AppRegistry.launch(appItem.dataset.app);
             this.close();
         } else if (linkItem) {
             e.stopPropagation();
+            EventBus.emit(StartMenuEvents.ITEM_CLICKED, { link: linkItem.dataset.link });
             AppRegistry.launch('browser', { url: linkItem.dataset.link });
             this.close();
         }
@@ -118,13 +121,14 @@ class StartMenuRendererClass {
         this.startButton.classList.add('active');
         EventBus.emit(Events.SOUND_PLAY, { type: 'click' });
         // Emit semantic event for scenario triggers
-        EventBus.emit('startmenu:opened', { timestamp: Date.now() });
+        EventBus.emit(StartMenuEvents.OPENED, { timestamp: Date.now() });
     }
 
     close() {
         this.isOpen = false;
         this.element.classList.remove('active');
         this.startButton.classList.remove('active');
+        EventBus.emit(StartMenuEvents.CLOSED, {});
     }
 
     render() {

@@ -6,6 +6,8 @@
 
 import AppBase from './AppBase.js';
 import StateManager from '../core/StateManager.js';
+import EventBus from '../core/EventBus.js';
+import { CalendarEvents } from '../core/scripted-events/SemanticEvents.js';
 
 class Calendar extends AppBase {
     constructor() {
@@ -108,6 +110,12 @@ class Calendar extends AppBase {
     }
 
     onMount() {
+        // Emit opened event
+        EventBus.emit(CalendarEvents.OPENED, {
+            month: this.getInstanceState('currentMonth'),
+            year: this.getInstanceState('currentYear')
+        });
+
         // Navigation buttons
         this.addHandler(this.getElement('#prevMonth'), 'click', () => this.changeMonth(-1));
         this.addHandler(this.getElement('#nextMonth'), 'click', () => this.changeMonth(1));
@@ -234,8 +242,10 @@ class Calendar extends AppBase {
     }
 
     changeMonth(delta) {
-        let month = this.getInstanceState('currentMonth') + delta;
-        let year = this.getInstanceState('currentYear');
+        const previousMonth = this.getInstanceState('currentMonth');
+        const previousYear = this.getInstanceState('currentYear');
+        let month = previousMonth + delta;
+        let year = previousYear;
 
         if (month < 0) {
             month = 11;
@@ -249,6 +259,21 @@ class Calendar extends AppBase {
         this.setInstanceState('currentYear', year);
         this.setInstanceState('selectedDate', null);
         this.renderCalendar();
+
+        // Emit month changed event
+        EventBus.emit(CalendarEvents.MONTH_CHANGED, {
+            month,
+            previousMonth,
+            year
+        });
+
+        // Emit year changed if year changed
+        if (year !== previousYear) {
+            EventBus.emit(CalendarEvents.YEAR_CHANGED, {
+                year,
+                previousYear
+            });
+        }
     }
 
     goToToday() {
@@ -257,9 +282,17 @@ class Calendar extends AppBase {
         this.setInstanceState('currentYear', now.getFullYear());
         this.selectDate(this.formatDate(now));
         this.renderCalendar();
+
+        // Emit today clicked event
+        EventBus.emit(CalendarEvents.TODAY_CLICKED, {
+            date: this.formatDate(now),
+            month: now.getMonth(),
+            year: now.getFullYear()
+        });
     }
 
     selectDate(date) {
+        const previousDate = this.getInstanceState('selectedDate');
         this.setInstanceState('selectedDate', date);
 
         // Update UI
@@ -268,6 +301,13 @@ class Calendar extends AppBase {
         });
 
         this.updateEventsList();
+
+        // Emit date selected event
+        EventBus.emit(CalendarEvents.DATE_SELECTED, {
+            date,
+            previousDate,
+            events: this.getInstanceState('events').filter(e => e.date === date)
+        });
     }
 
     // --- Events Management ---
@@ -372,6 +412,14 @@ class Calendar extends AppBase {
         const events = this.getInstanceState('events');
         const event = events.find(e => e.id === eventId);
         if (event) {
+            // Emit event clicked
+            EventBus.emit(CalendarEvents.EVENT_CLICKED, {
+                event,
+                eventId,
+                date: event.date,
+                title: event.title
+            });
+
             this.showEventDialog(event);
         }
     }
@@ -401,7 +449,7 @@ class Calendar extends AppBase {
             }
         } else {
             // Add new event
-            events.push({
+            const newEvent = {
                 id: Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
                 title,
                 date,
@@ -409,6 +457,14 @@ class Calendar extends AppBase {
                 description,
                 color,
                 created: new Date().toISOString()
+            };
+            events.push(newEvent);
+
+            // Emit event created
+            EventBus.emit(CalendarEvents.EVENT_CREATED, {
+                event: newEvent,
+                date,
+                title
             });
         }
 
@@ -424,6 +480,7 @@ class Calendar extends AppBase {
         if (!editingId) return;
 
         let events = this.getInstanceState('events');
+        const deletedEvent = events.find(e => e.id === editingId);
         events = events.filter(e => e.id !== editingId);
 
         this.setInstanceState('events', events);
@@ -431,6 +488,16 @@ class Calendar extends AppBase {
         this.hideEventDialog();
         this.renderCalendar();
         this.playSound('click');
+
+        // Emit event deleted
+        if (deletedEvent) {
+            EventBus.emit(CalendarEvents.EVENT_DELETED, {
+                event: deletedEvent,
+                eventId: editingId,
+                date: deletedEvent.date,
+                title: deletedEvent.title
+            });
+        }
     }
 
     // --- Storage ---

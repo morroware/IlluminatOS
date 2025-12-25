@@ -9,6 +9,7 @@
 import FeatureBase from '../core/FeatureBase.js';
 import EventBus, { Events } from '../core/EventBus.js';
 import StateManager from '../core/StateManager.js';
+import { ClippyEvents } from '../core/scripted-events/SemanticEvents.js';
 
 // Feature metadata
 const FEATURE_METADATA = {
@@ -762,6 +763,9 @@ class ClippyAssistant extends FeatureBase {
 
         this.speak();
         this.setupHandlers();
+
+        // Emit appeared event
+        EventBus.emit(ClippyEvents.APPEARED, { mood: this.mood });
     }
 
     setupHandlers() {
@@ -796,6 +800,7 @@ class ClippyAssistant extends FeatureBase {
             if (bubble) bubble.classList.remove('active');
             this.isVisible = false;
             this.clickCount = 0;
+            EventBus.emit(ClippyEvents.DISMISSED, { dismissCount: this.dismissCount });
         }
     }
 
@@ -803,6 +808,7 @@ class ClippyAssistant extends FeatureBase {
         const text = document.getElementById('clippyText');
         if (text) {
             text.textContent = message;
+            EventBus.emit(ClippyEvents.TIP_SHOWN, { message });
         }
     }
 
