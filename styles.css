@@ -4802,3 +4802,295 @@ body.loading * {
     left: auto;
     right: 0;
 }
+
+/* ============================================
+   Accessibility - Focus Indicators
+   ============================================ */
+
+/* High-visibility focus indicator for all interactive elements */
+*:focus-visible {
+    outline: 2px solid #ffcc00 !important;
+    outline-offset: 2px;
+}
+
+/* Focus styles for buttons */
+.window-button:focus-visible,
+.start-button:focus-visible,
+.clippy-btn:focus-visible,
+.btn:focus-visible,
+button:focus-visible {
+    outline: 2px solid #ffcc00;
+    outline-offset: 1px;
+    box-shadow: 0 0 0 3px rgba(255, 204, 0, 0.3);
+}
+
+/* Focus styles for menu items */
+.start-menu-item:focus-visible,
+.context-item:focus-visible,
+.start-menu-item.keyboard-focused {
+    outline: none;
+    background: var(--win95-blue);
+    color: white;
+    box-shadow: inset 0 0 0 2px #ffcc00;
+}
+
+/* Make menu items focusable */
+.start-menu-item {
+    cursor: pointer;
+}
+
+.start-menu-item:focus {
+    outline: none;
+}
+
+/* Focus styles for desktop icons */
+.icon:focus-visible {
+    outline: none;
+    border: 2px solid #ffcc00;
+    background: rgba(0, 0, 128, 0.5);
+}
+
+/* Focus styles for taskbar buttons */
+.task-button:focus-visible {
+    outline: 2px solid #ffcc00;
+    outline-offset: -2px;
+}
+
+/* Focus styles for form inputs */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+    outline: 2px solid #ffcc00;
+    outline-offset: 0;
+    border-color: var(--win95-blue);
+}
+
+/* Skip to content for screen readers */
+.skip-link {
+    position: absolute;
+    top: -40px;
+    left: 0;
+    background: var(--win95-blue);
+    color: white;
+    padding: 8px 16px;
+    z-index: 100001;
+    text-decoration: none;
+}
+
+.skip-link:focus {
+    top: 0;
+}
+
+/* ============================================
+   Performance - Animation Optimizations
+   ============================================ */
+
+/* GPU acceleration hints for animated elements */
+.window {
+    will-change: transform, box-shadow;
+}
+
+.window.dragging,
+.window.resizing {
+    will-change: left, top, width, height;
+}
+
+.window.opening,
+.window.minimizing,
+.window.restoring,
+.window.maximizing {
+    will-change: transform, opacity;
+}
+
+/* Snap preview optimization */
+.snap-preview {
+    will-change: opacity, width, height, left, top;
+}
+
+/* Clippy animation optimization */
+.clippy {
+    will-change: transform, opacity;
+}
+
+.clippy-character {
+    will-change: transform;
+}
+
+/* Icon drag optimization */
+.icon.dragging {
+    will-change: transform;
+}
+
+/* Menu animation optimization */
+.start-menu,
+.context-menu {
+    will-change: opacity, transform;
+}
+
+/* Screensaver optimization */
+.toaster {
+    will-change: transform;
+}
+
+/* Reset will-change when not needed to free GPU memory */
+.window:not(.dragging):not(.resizing):not(.opening):not(.minimizing):not(.restoring):not(.maximizing) {
+    will-change: auto;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    .crt-overlay.active {
+        animation: none;
+    }
+
+    .clippy-character {
+        animation: none;
+    }
+
+    .window.opening,
+    .window.minimizing,
+    .window.restoring {
+        animation: none;
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* ============================================
+   Clippy - Responsive Positioning
+   ============================================ */
+@media (max-width: 768px) {
+    .clippy {
+        bottom: 60px;
+        right: 10px;
+    }
+
+    .clippy-character {
+        font-size: 48px;
+    }
+
+    .clippy-bubble {
+        width: 200px;
+        bottom: 60px;
+        right: -10px;
+        font-size: 14px;
+    }
+
+    .clippy-bubble::after {
+        right: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .clippy {
+        bottom: 55px;
+        right: 5px;
+    }
+
+    .clippy-character {
+        font-size: 40px;
+    }
+
+    .clippy-bubble {
+        width: 180px;
+        max-width: calc(100vw - 60px);
+        bottom: 50px;
+        padding: 8px;
+    }
+
+    .clippy-text {
+        font-size: 13px;
+    }
+
+    .clippy-buttons {
+        flex-wrap: wrap;
+    }
+
+    .clippy-btn {
+        padding: 4px 10px;
+        font-size: 12px;
+    }
+}
+
+/* ============================================
+   Context Menu - Edge Positioning Fix
+   ============================================ */
+.context-menu {
+    /* Ensure menu stays within viewport */
+    max-width: calc(100vw - 20px);
+    max-height: calc(100vh - 70px);
+    overflow-y: auto;
+}
+
+.context-submenu {
+    /* Prevent submenus from going off screen */
+    max-width: calc(100vw - 220px);
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+}
+
+/* Submenu positioning when near right edge - will be positioned via JS */
+.context-submenu.flip-left {
+    left: auto;
+    right: 100%;
+}
+
+/* ============================================
+   ARIA Live Regions
+   ============================================ */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Notification announcements for screen readers */
+[role="status"],
+[role="alert"] {
+    /* Visually hidden but accessible to screen readers */
+}
+
+/* ============================================
+   High Contrast Mode Support
+   ============================================ */
+@media (prefers-contrast: high) {
+    :root {
+        --win95-gray: #ffffff;
+        --win95-blue: #000080;
+        --win95-dark: #000000;
+        --win95-light: #ffffff;
+    }
+
+    .window {
+        border: 3px solid #000000;
+    }
+
+    .title-bar {
+        background: #000080;
+    }
+
+    *:focus-visible {
+        outline: 3px solid #ffcc00 !important;
+        outline-offset: 2px;
+    }
+
+    .icon-label {
+        text-shadow: none;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 2px 4px;
+    }
+}

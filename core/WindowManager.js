@@ -38,6 +38,27 @@ class WindowManagerClass {
         this.boundTouchDragEnd = this.handleTouchDragEnd.bind(this);
         this.boundTouchResizeMove = this.handleTouchResizeMove.bind(this);
         this.boundTouchResizeEnd = this.handleTouchResizeEnd.bind(this);
+        // Debounced resize event emission
+        this.resizeRAF = null;
+        this.pendingResizeEvent = null;
+    }
+
+    /**
+     * Debounce resize events using requestAnimationFrame
+     * This prevents excessive events during drag operations
+     */
+    emitResizeEventDebounced(eventData) {
+        this.pendingResizeEvent = eventData;
+
+        if (!this.resizeRAF) {
+            this.resizeRAF = requestAnimationFrame(() => {
+                if (this.pendingResizeEvent) {
+                    EventBus.emit(Events.WINDOW_RESIZE, this.pendingResizeEvent);
+                    this.pendingResizeEvent = null;
+                }
+                this.resizeRAF = null;
+            });
+        }
     }
 
     /**
@@ -98,19 +119,24 @@ class WindowManagerClass {
         windowEl.style.zIndex = ++this.zCounter;
 
         // Build window HTML - using ASCII-safe characters for buttons
+        // Added ARIA attributes for accessibility
+        windowEl.setAttribute('role', 'dialog');
+        windowEl.setAttribute('aria-labelledby', `window-title-${id}`);
+        windowEl.setAttribute('aria-modal', 'false');
+
         windowEl.innerHTML = `
-            <div class="title-bar" data-window-id="${id}">
-                <span class="title-text">
-                    <span style="margin-right: 5px;">${icon}</span>
+            <div class="title-bar" data-window-id="${id}" role="banner">
+                <span class="title-text" id="window-title-${id}">
+                    <span style="margin-right: 5px;" aria-hidden="true">${icon}</span>
                     ${title}
                 </span>
-            <div class="window-controls">
-                    <button class="window-button" data-action="minimize" title="Minimize">_</button>
-                    <button class="window-button" data-action="maximize" title="Maximize">[ ]</button>
-                    <button class="window-button" data-action="close" title="Close">X</button>
+            <div class="window-controls" role="group" aria-label="Window controls">
+                    <button class="window-button" data-action="minimize" title="Minimize" aria-label="Minimize window">_</button>
+                    <button class="window-button" data-action="maximize" title="Maximize" aria-label="Maximize window">[ ]</button>
+                    <button class="window-button" data-action="close" title="Close" aria-label="Close window">X</button>
                 </div>
             </div>
-            <div class="window-content">${content}</div>
+            <div class="window-content" role="main">${content}</div>
             ${resizable ? this.createResizeHandles(id) : ''}
         `;
 
@@ -769,8 +795,8 @@ class WindowManagerClass {
             element.style.top = `${newTop}px`;
         }
 
-        // Emit resize event for apps to react
-        EventBus.emit(Events.WINDOW_RESIZE, {
+        // Emit debounced resize event for apps to react
+        this.emitResizeEventDebounced({
             id: this.resizingWindow.id,
             width: newWidth,
             height: newHeight,
@@ -897,7 +923,8 @@ class WindowManagerClass {
             element.style.top = `${newTop}px`;
         }
 
-        EventBus.emit(Events.WINDOW_RESIZE, {
+        // Emit debounced resize event for apps to react
+        this.emitResizeEventDebounced({
             id: this.resizingWindow.id,
             width: newWidth,
             height: newHeight,
