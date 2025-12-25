@@ -683,57 +683,78 @@ class StartMenuRendererClass {
      * @param {HTMLElement} submenu - The submenu element
      */
     positionSubmenu(trigger, submenu) {
+        // Get trigger position in viewport
         const triggerRect = trigger.getBoundingClientRect();
-        const viewportHeight = window.innerHeight;
+
+        // Viewport dimensions
         const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
         const taskbarHeight = 50;
-        const availableHeight = viewportHeight - taskbarHeight;
 
-        // Default position: to the right of the trigger, aligned at top
-        let left = triggerRect.right;
-        let top = triggerRect.top;
+        // Reset any previous positioning constraints
+        submenu.style.maxHeight = '';
 
-        // First, set initial position and make visible to get accurate measurements
-        submenu.style.left = `${left}px`;
-        submenu.style.top = `${top}px`;
+        // Calculate submenu dimensions by temporarily showing it at origin
+        submenu.style.left = '0px';
+        submenu.style.top = '0px';
         submenu.style.visibility = 'hidden';
         submenu.style.display = 'block';
 
-        // Now get accurate submenu dimensions
-        const submenuRect = submenu.getBoundingClientRect();
-        const submenuWidth = submenuRect.width;
-        const submenuHeight = submenuRect.height;
+        const submenuWidth = submenu.offsetWidth;
+        const submenuHeight = submenu.offsetHeight;
 
-        // Hide again while we calculate final position
+        // Hide again
         submenu.style.display = '';
         submenu.style.visibility = '';
 
-        // Check if submenu would overflow to the right of viewport
-        if (left + submenuWidth > viewportWidth) {
-            // Position to the left of trigger instead
-            left = triggerRect.left - submenuWidth;
-            // If still off-screen, align to left edge
-            if (left < 0) left = 4;
+        // Default position: to the right of trigger, aligned at trigger's top
+        let left = triggerRect.right;
+        let top = triggerRect.top;
+
+        // For nested submenus (trigger is inside another submenu),
+        // position relative to the trigger's position
+        const parentSubmenu = trigger.closest('.start-submenu');
+        if (parentSubmenu) {
+            // This is a nested submenu - position to the right of parent submenu
+            const parentRect = parentSubmenu.getBoundingClientRect();
+            left = parentRect.right;
         }
 
-        // Check if submenu would overflow below taskbar
-        if (top + submenuHeight > availableHeight) {
-            // Align bottom of submenu with bottom of available area
-            top = availableHeight - submenuHeight;
-            // If submenu is taller than available space
-            if (top < 0) {
-                top = 4;
-                submenu.style.maxHeight = `${availableHeight - 8}px`;
+        // Check horizontal overflow - if goes off right edge, flip to left side
+        if (left + submenuWidth > viewportWidth - 4) {
+            // Try positioning to the left of the trigger/parent
+            if (parentSubmenu) {
+                const parentRect = parentSubmenu.getBoundingClientRect();
+                left = parentRect.left - submenuWidth;
+            } else {
+                left = triggerRect.left - submenuWidth;
+            }
+            // If still off-screen, just align to left edge with padding
+            if (left < 4) {
+                left = 4;
             }
         }
 
-        // Final safety bounds
-        if (left < 0) left = 4;
-        if (top < 0) top = 4;
+        // Check vertical overflow - if goes below taskbar, shift up
+        const maxBottom = viewportHeight - taskbarHeight;
+        if (top + submenuHeight > maxBottom) {
+            // Shift up so bottom aligns with available space
+            top = maxBottom - submenuHeight;
+        }
 
-        // Apply final positioning
-        submenu.style.left = `${left}px`;
-        submenu.style.top = `${top}px`;
+        // If shifted too far up (off top of screen), pin to top
+        if (top < 4) {
+            top = 4;
+            // If submenu is taller than available space, constrain height
+            const availableHeight = maxBottom - 8;
+            if (submenuHeight > availableHeight) {
+                submenu.style.maxHeight = `${availableHeight}px`;
+            }
+        }
+
+        // Apply final position
+        submenu.style.left = `${Math.round(left)}px`;
+        submenu.style.top = `${Math.round(top)}px`;
     }
 
     /**
