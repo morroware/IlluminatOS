@@ -2,7 +2,11 @@
 
 ## Executive Summary
 
-IlluminatOS! is a well-architected Windows 95 simulator built with vanilla JavaScript, demonstrating clean separation of concerns and modular design. The codebase features robust patterns including event-driven architecture, centralized state management, and a comprehensive app framework supporting multi-instance windows.
+IlluminatOS! is a well-architected Windows 95 simulator built with vanilla JavaScript, demonstrating clean separation of concerns and modular design. The codebase features robust patterns including event-driven architecture, centralized state management, a comprehensive app framework supporting multi-instance windows, and a powerful scenario system for creating interactive experiences.
+
+**Version:** 95.1
+**Last Updated:** December 2024
+**Status:** Production-ready with comprehensive feature set
 
 ---
 
@@ -11,7 +15,7 @@ IlluminatOS! is a well-architected Windows 95 simulator built with vanilla JavaS
 ### Project Structure
 ```
 IlluminatOS!/
-├── core/                    # Core OS systems (10 modules)
+├── core/                    # Core OS systems (18 modules)
 │   ├── EventBus.js         # Central pub/sub messaging
 │   ├── StateManager.js     # Centralized state + persistence
 │   ├── WindowManager.js    # Window lifecycle management
@@ -19,13 +23,27 @@ IlluminatOS!/
 │   ├── FileSystemManager.js # Virtual file system
 │   ├── IconSystem.js       # FontAwesome + emoji icons
 │   ├── Constants.js        # Centralized configuration
-│   ├── PluginLoader.js     # Plugin loading & management (NEW)
-│   ├── FeatureRegistry.js  # Feature registration & lifecycle (NEW)
-│   └── FeatureBase.js      # Base class for features (NEW)
-├── apps/                    # Application implementations
+│   ├── PluginLoader.js     # Plugin loading & management
+│   ├── FeatureRegistry.js  # Feature registration & lifecycle
+│   ├── FeatureBase.js      # Base class for features
+│   │
+│   └── scripted-events/    # Scenario System (8 modules) ✨ NEW
+│       ├── ScenarioManager.js   # Main orchestrator
+│       ├── ScenarioLoader.js    # Load & validate scenarios
+│       ├── ActionExecutor.js    # Execute scenario actions
+│       ├── ConditionEvaluator.js # Evaluate conditions
+│       ├── TriggerEngine.js     # Event trigger management
+│       ├── SemanticEvents.js    # App-specific events
+│       ├── EventEmitterMixin.js # Event functionality
+│       └── index.js             # Module exports
+│
+├── apps/                    # Application implementations (29 apps)
 │   ├── AppBase.js          # Base class for all apps
 │   ├── AppRegistry.js      # App registration & launching
-│   └── [27 app files]      # Individual applications
+│   ├── ScenarioPlayer.js   # Scenario runner app ✨ NEW
+│   ├── FeaturesSettings.js # Feature management UI ✨ NEW
+│   └── [27 other apps]     # Individual applications
+│
 ├── features/               # Core system features (7 modules)
 │   ├── AchievementSystem.js
 │   ├── ClippyAssistant.js
@@ -34,20 +52,29 @@ IlluminatOS!/
 │   ├── Screensaver.js
 │   ├── SoundSystem.js
 │   └── SystemDialogs.js
-├── plugins/                # Third-party plugins (NEW)
+│
+├── plugins/                # Third-party plugins
 │   └── features/           # Feature plugins
-│       └── dvd-bouncer/    # Example plugin
-│           ├── index.js
-│           ├── DVDBouncerFeature.js
-│           └── README.md
+│       ├── dvd-bouncer/    # DVD screensaver plugin
+│       │   ├── index.js
+│       │   ├── DVDBouncerFeature.js
+│       │   └── README.md
+│       └── example-plugin/ # Plugin template
+│
 ├── ui/                     # UI renderers (4 modules)
 │   ├── DesktopRenderer.js
 │   ├── StartMenuRenderer.js
 │   ├── TaskbarRenderer.js
 │   └── ContextMenuRenderer.js
+│
+├── scenarios/              # Scenario definitions ✨ NEW
+│   ├── schema.json         # JSON schema for scenarios
+│   ├── tutorial.scenario.json     # Tutorial scenario
+│   └── cipher-hunt.scenario.json  # Challenge scenario
+│
 ├── index.js                # Boot sequence & initialization
-├── index.html              # HTML shell
-└── styles.css              # Global styles (~2700 lines)
+├── index.html              # HTML shell with boot screen
+└── styles.css              # Global styles (~2,700 lines)
 ```
 
 ### Key Architectural Patterns
@@ -61,16 +88,98 @@ IlluminatOS!/
 | Observer | StateManager.subscribe() | Reactive state updates |
 
 ### Statistics
-- **Total Files**: 47+ JavaScript files
-- **Lines of Code**: ~32,500
+- **Total Files**: 68 JavaScript files
+- **Lines of Code**: ~32,500+
 - **Dependencies**: Zero (pure vanilla JS)
 - **Apps**: 29 registered applications
 - **Core Features**: 7 system features
+- **Scenario System**: 8 modules
 - **Plugins**: Extensible plugin system with example DVD Bouncer
+- **Scenarios**: 2 example scenarios (tutorial, cipher hunt)
+- **Documentation**: 6 comprehensive guides
 
 ---
 
-## Plugin System (NEW)
+## Scenario System ✨ NEW
+
+IlluminatOS! v95.1 introduces a powerful **Scenario System** for creating interactive tutorials, challenges, and guided experiences.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     SCENARIO SYSTEM                              │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────────────┐     ┌─────────────────────┐               │
+│  │ ScenarioManager  │────▶│  ScenarioLoader     │               │
+│  │  (Orchestrator)  │     │  (Load & Validate)  │               │
+│  └────────┬─────────┘     └─────────────────────┘               │
+│           │                                                      │
+│           ├──────────────┬──────────────┬─────────────────┐     │
+│           ▼              ▼              ▼                 ▼     │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌────────┐│
+│  │TriggerEngine │ │ConditionEval │ │ActionExecutor│ │Semantic││
+│  │(Event mgmt)  │ │(Check logic) │ │(Do actions)  │ │Events  ││
+│  └──────────────┘ └──────────────┘ └──────────────┘ └────────┘│
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Core Components
+
+| Component | Purpose | Key Features |
+|-----------|---------|--------------|
+| **ScenarioManager** | Orchestrates scenario execution | Progress tracking, state management, lifecycle |
+| **ScenarioLoader** | Loads and validates scenarios | JSON schema validation, error handling |
+| **TriggerEngine** | Manages event triggers | Debouncing, priority, once-only triggers |
+| **ConditionEvaluator** | Evaluates progression logic | 30+ condition types, AND/OR/NOT logic |
+| **ActionExecutor** | Executes scenario actions | 30+ action types, async support |
+| **SemanticEvents** | App-specific events | Type-safe event definitions for all apps |
+
+### Capabilities
+
+**Event-Driven Triggers**
+- React to 50+ system and app events
+- Custom event support
+- Debouncing and priority handling
+
+**Complex Conditions**
+- File system checks (exists, contains, equals)
+- App state (open, focused, locked)
+- Time-based conditions (elapsed, before, after)
+- Logic gates (and, or, not)
+- Event data matching
+
+**Powerful Actions**
+- File operations (create, modify, delete)
+- UI controls (dialogs, notifications, Clippy)
+- App management (launch, close, lock/unlock)
+- System effects (achievements, sounds, wallpaper)
+- Navigation (advance stage, complete scenario)
+
+### Use Cases
+
+1. **Interactive Tutorials** - Teach users how to use the OS
+2. **Challenges & Puzzles** - Cryptography hunts, escape rooms
+3. **Educational Content** - Step-by-step learning experiences
+4. **Product Demos** - Automated showcases of features
+
+### Example Scenarios
+
+**Tutorial** (`tutorial.scenario.json`)
+- Difficulty: Easy
+- Duration: 5-10 minutes
+- Teaches desktop navigation and basic apps
+
+**Cipher Hunt** (`cipher-hunt.scenario.json`)
+- Difficulty: Medium/Hard
+- Duration: 15-30 minutes
+- Multi-stage cryptography challenge
+
+---
+
+## Plugin System
 
 IlluminatOS! now features a comprehensive plugin system enabling third-party extensions without modifying core code.
 
