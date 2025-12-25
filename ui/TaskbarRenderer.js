@@ -7,6 +7,7 @@ import EventBus, { Events } from '../core/EventBus.js';
 import StateManager from '../core/StateManager.js';
 import WindowManager from '../core/WindowManager.js';
 import AppRegistry from '../apps/AppRegistry.js';
+import { TaskbarEvents } from '../core/scripted-events/SemanticEvents.js';
 
 class TaskbarRendererClass {
     constructor() {
@@ -93,6 +94,8 @@ class TaskbarRendererClass {
                 const app = btn.dataset.app;
                 const action = btn.dataset.action;
 
+                EventBus.emit(TaskbarEvents.QUICKLAUNCH_CLICKED, { app, action });
+
                 if (app) {
                     AppRegistry.launch(app);
                 } else if (action === 'web') {
@@ -113,6 +116,7 @@ class TaskbarRendererClass {
             volumeIcon.addEventListener('click', () => {
                 const newState = StateManager.toggleSetting('sound');
                 this.updateVolumeIcon();
+                EventBus.emit(TaskbarEvents.TRAY_ICON_CLICKED, { icon: 'volume', enabled: newState });
                 if (newState) {
                     EventBus.emit(Events.SOUND_PLAY, { type: 'click' });
                 }
@@ -125,7 +129,10 @@ class TaskbarRendererClass {
         // Clock
         const clock = document.getElementById('clock');
         if (clock) {
-            clock.addEventListener('click', () => this.handleClockClick());
+            clock.addEventListener('click', () => {
+                EventBus.emit(TaskbarEvents.CLOCK_CLICKED, {});
+                this.handleClockClick();
+            });
             // Start clock updates - store interval ID for cleanup
             this.updateClock();
             this.clockIntervalId = setInterval(() => this.updateClock(), 1000);
@@ -241,6 +248,7 @@ class TaskbarRendererClass {
 
             // Click handler
             btn.addEventListener('click', () => {
+                EventBus.emit(TaskbarEvents.BUTTON_CLICKED, { windowId: w.id, title: w.title });
                 WindowManager.toggle(w.id);
             });
 

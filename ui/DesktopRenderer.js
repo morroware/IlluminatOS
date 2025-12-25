@@ -8,6 +8,7 @@ import StateManager from '../core/StateManager.js';
 import AppRegistry from '../apps/AppRegistry.js';
 import FileSystemManager from '../core/FileSystemManager.js';
 import { PATHS, DESKTOP } from '../core/Constants.js';
+import { DesktopEvents } from '../core/scripted-events/SemanticEvents.js';
 
 class DesktopRendererClass {
     constructor() {
@@ -208,10 +209,16 @@ class DesktopRendererClass {
         `;
 
         // Double-click to open
-        iconEl.addEventListener('dblclick', () => this.handleIconOpen(icon));
+        iconEl.addEventListener('dblclick', () => {
+            EventBus.emit(DesktopEvents.ICON_DOUBLE_CLICKED, { iconId: icon.id, iconLabel: icon.label });
+            this.handleIconOpen(icon);
+        });
         iconEl.addEventListener('contextmenu', (e) => this.showIconContextMenu(e, icon));
         iconEl.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') this.handleIconOpen(icon);
+        });
+        iconEl.addEventListener('click', () => {
+            EventBus.emit(DesktopEvents.ICON_CLICKED, { iconId: icon.id, iconLabel: icon.label });
         });
 
 
@@ -273,6 +280,7 @@ class DesktopRendererClass {
 
             iconEl.classList.add('dragging');
             EventBus.emit(Events.DRAG_START, { type: 'icon', id: icon.id });
+            EventBus.emit(DesktopEvents.ICON_DRAGGED, { iconId: icon.id, iconLabel: icon.label });
         });
 
         iconEl.addEventListener('dragend', () => {
@@ -353,6 +361,7 @@ class DesktopRendererClass {
         // Click to deselect
         this.desktop.addEventListener('click', (e) => {
             if (e.target === this.desktop) {
+                EventBus.emit(DesktopEvents.CLICKED, {});
                 this.deselectAll();
             }
         });
@@ -500,6 +509,7 @@ class DesktopRendererClass {
             }
 
             EventBus.emit(Events.ICON_MOVE, { id: iconInfo.id, x, y });
+            EventBus.emit(DesktopEvents.ICON_DROPPED, { iconId: iconInfo.id, x, y });
         } catch (err) {
             console.error('Failed to reposition desktop icon:', err);
         }
