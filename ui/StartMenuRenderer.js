@@ -580,17 +580,30 @@ class StartMenuRendererClass {
         const submenuTriggers = this.element.querySelectorAll('.submenu-trigger');
 
         submenuTriggers.forEach(trigger => {
+            const submenu = trigger.querySelector(':scope > .start-submenu');
+            if (!submenu) return;
+
             trigger.addEventListener('mouseenter', () => {
-                const submenu = trigger.querySelector(':scope > .start-submenu');
-                if (submenu) {
-                    this.positionSubmenu(trigger, submenu);
+                // Position and show the submenu
+                this.positionSubmenu(trigger, submenu);
+                submenu.style.display = 'block';
+            });
+
+            trigger.addEventListener('mouseleave', (e) => {
+                // Only hide if we're not moving to the submenu itself
+                if (!submenu.contains(e.relatedTarget)) {
+                    submenu.style.display = 'none';
                 }
             });
 
-            // Note: We intentionally don't reset positioning on mouseleave
-            // because the submenu is a child of the trigger - resetting position
-            // while hovering the submenu would cause it to jump away.
-            // The CSS handles hiding the submenu when the parent loses hover state.
+            // Keep submenu visible when hovering over it
+            submenu.addEventListener('mouseenter', () => {
+                submenu.style.display = 'block';
+            });
+
+            submenu.addEventListener('mouseleave', () => {
+                submenu.style.display = 'none';
+            });
         });
     }
 
@@ -619,8 +632,6 @@ class StartMenuRendererClass {
         console.log(`[StartMenuRenderer] Positioning submenu for "${triggerName}" with ${itemCount} items`);
 
         // Ensure submenu is visible for measurement
-        const originalDisplay = submenu.style.display;
-        const originalVisibility = submenu.style.visibility;
         submenu.style.visibility = 'hidden';
         submenu.style.display = 'block';
 
@@ -657,10 +668,7 @@ class StartMenuRendererClass {
         // Apply positioning
         submenu.style.left = `${left}px`;
         submenu.style.top = `${top}px`;
-
-        // Restore original display/visibility to let CSS handle show/hide
-        submenu.style.visibility = originalVisibility;
-        submenu.style.display = originalDisplay;
+        submenu.style.visibility = 'visible';
 
         console.log(`[StartMenuRenderer] Positioned "${triggerName}" submenu at left=${left}, top=${top}`);
     }
