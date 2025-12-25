@@ -616,13 +616,13 @@ class StartMenuRendererClass {
         const itemCount = submenu.querySelectorAll('.start-menu-item').length;
         console.log(`[StartMenuRenderer] Positioning submenu for "${triggerName}" with ${itemCount} items`);
 
-        // Temporarily show to measure
-        const wasHidden = getComputedStyle(submenu).display === 'none';
-        if (wasHidden) {
-            submenu.style.visibility = 'hidden';
-            submenu.style.display = 'block';
-        }
+        // Ensure submenu is visible for measurement
+        const originalDisplay = submenu.style.display;
+        const originalVisibility = submenu.style.visibility;
+        submenu.style.visibility = 'hidden';
+        submenu.style.display = 'block';
 
+        // Force reflow to get accurate measurements
         const submenuRect = submenu.getBoundingClientRect();
 
         // Check if submenu would overflow to the right
@@ -647,11 +647,11 @@ class StartMenuRendererClass {
         submenu.style.left = `${left}px`;
         submenu.style.top = `${top}px`;
 
-        // Restore visibility
-        if (wasHidden) {
-            submenu.style.visibility = '';
-            submenu.style.display = '';
-        }
+        // Restore original display/visibility to let CSS handle show/hide
+        submenu.style.visibility = originalVisibility;
+        submenu.style.display = originalDisplay;
+
+        console.log(`[StartMenuRenderer] Positioned "${triggerName}" submenu at left=${left}, top=${top}`);
     }
 }
 
