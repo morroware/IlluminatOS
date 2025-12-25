@@ -692,7 +692,17 @@ class StartMenuRendererClass {
         // Reset constraints
         submenu.style.maxHeight = '';
 
-        // Simply use getBoundingClientRect for the trigger
+        // CRITICAL: Hide ALL nested submenus inside this submenu to prevent them from affecting layout
+        const nestedSubmenus = submenu.querySelectorAll('.start-submenu');
+        nestedSubmenus.forEach(nested => {
+            nested.style.display = 'none';
+        });
+
+        // Show submenu to measure it
+        submenu.style.visibility = 'hidden';
+        submenu.style.display = 'block';
+
+        // Now get accurate trigger position (nested submenus are hidden, so layout is correct)
         const triggerRect = trigger.getBoundingClientRect();
 
         // Position to the right of the trigger, aligned with its top
@@ -701,14 +711,16 @@ class StartMenuRendererClass {
 
         console.log(`[Submenu] "${triggerName}" triggerRect: left=${triggerRect.left}, top=${triggerRect.top}, right=${triggerRect.right}, bottom=${triggerRect.bottom}`);
 
-        // Show submenu to measure it
-        submenu.style.visibility = 'hidden';
-        submenu.style.display = 'block';
         submenu.style.left = `${left}px`;
         submenu.style.top = `${top}px`;
 
         const submenuWidth = submenu.offsetWidth;
         const submenuHeight = submenu.offsetHeight;
+
+        // Restore nested submenus (they'll be hidden by CSS unless they have .submenu-open)
+        nestedSubmenus.forEach(nested => {
+            nested.style.display = '';
+        });
 
         // Horizontal overflow - flip to left if needed
         if (left + submenuWidth > viewportWidth - 4) {
