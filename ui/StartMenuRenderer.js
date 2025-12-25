@@ -580,30 +580,17 @@ class StartMenuRendererClass {
         const submenuTriggers = this.element.querySelectorAll('.submenu-trigger');
 
         submenuTriggers.forEach(trigger => {
-            const submenu = trigger.querySelector(':scope > .start-submenu');
-            if (!submenu) return;
-
             trigger.addEventListener('mouseenter', () => {
-                // Position and show the submenu
-                this.positionSubmenu(trigger, submenu);
-                submenu.style.display = 'block';
-            });
-
-            trigger.addEventListener('mouseleave', (e) => {
-                // Only hide if we're not moving to the submenu itself
-                if (!submenu.contains(e.relatedTarget)) {
-                    submenu.style.display = 'none';
+                const submenu = trigger.querySelector(':scope > .start-submenu');
+                if (submenu) {
+                    this.positionSubmenu(trigger, submenu);
                 }
             });
 
-            // Keep submenu visible when hovering over it
-            submenu.addEventListener('mouseenter', () => {
-                submenu.style.display = 'block';
-            });
-
-            submenu.addEventListener('mouseleave', () => {
-                submenu.style.display = 'none';
-            });
+            // Note: We intentionally don't reset positioning on mouseleave
+            // because the submenu is a child of the trigger - resetting position
+            // while hovering the submenu would cause it to jump away.
+            // The CSS handles hiding the submenu when the parent loses hover state.
         });
     }
 
@@ -616,9 +603,7 @@ class StartMenuRendererClass {
     positionSubmenu(trigger, submenu) {
         const triggerRect = trigger.getBoundingClientRect();
         const viewportHeight = window.innerHeight;
-        // Safeguard: viewport width should never be less than 800 for desktop
-        // This fixes issues where innerWidth reports incorrect values during page load
-        const viewportWidth = Math.max(window.innerWidth, 800);
+        const viewportWidth = window.innerWidth;
         const taskbarHeight = 50;
         const availableHeight = viewportHeight - taskbarHeight;
 
@@ -631,27 +616,20 @@ class StartMenuRendererClass {
         const itemCount = submenu.querySelectorAll('.start-menu-item').length;
         console.log(`[StartMenuRenderer] Positioning submenu for "${triggerName}" with ${itemCount} items`);
 
-        // Ensure submenu is visible for measurement
-        submenu.style.visibility = 'hidden';
-        submenu.style.display = 'block';
+        // Temporarily show to measure
+        const wasHidden = getComputedStyle(submenu).display === 'none';
+        if (wasHidden) {
+            submenu.style.visibility = 'hidden';
+            submenu.style.display = 'block';
+        }
 
-        // Force reflow to get accurate measurements
         const submenuRect = submenu.getBoundingClientRect();
-
-        console.log(`[StartMenuRenderer] Initial positioning: left=${left}, width=${submenuRect.width}, viewport=${viewportWidth}, triggerLeft=${triggerRect.left}`);
 
         // Check if submenu would overflow to the right
         if (left + submenuRect.width > viewportWidth) {
-            // Try positioning to the left of trigger instead
-            const leftAlternative = triggerRect.left - submenuRect.width;
-            if (leftAlternative >= 10) {
-                // Left positioning works - use it
-                left = leftAlternative;
-            } else {
-                // Both directions overflow - position with small right margin
-                left = viewportWidth - submenuRect.width - 10;
-                if (left < 10) left = 10; // Ensure minimum left margin
-            }
+            // Position to the left of trigger instead
+            left = triggerRect.left - submenuRect.width;
+            if (left < 0) left = 0;
         }
 
         // Check if submenu would overflow below taskbar
@@ -668,9 +646,12 @@ class StartMenuRendererClass {
         // Apply positioning
         submenu.style.left = `${left}px`;
         submenu.style.top = `${top}px`;
-        submenu.style.visibility = 'visible';
 
-        console.log(`[StartMenuRenderer] Positioned "${triggerName}" submenu at left=${left}, top=${top}`);
+        // Restore visibility
+        if (wasHidden) {
+            submenu.style.visibility = '';
+            submenu.style.display = '';
+        }
     }
 }
 
