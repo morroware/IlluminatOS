@@ -1082,7 +1082,8 @@ body {
     overflow-y: auto;
 }
 
-.submenu-trigger:hover > .start-submenu {
+/* JavaScript controls visibility via .submenu-open class */
+.start-submenu.submenu-open {
     display: block;
 }
 

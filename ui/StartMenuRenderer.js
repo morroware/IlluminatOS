@@ -233,8 +233,12 @@ class StartMenuRendererClass {
 
         const item = this.focusableItems[this.focusedIndex];
         if (item.classList.contains('submenu-trigger')) {
-            const submenu = item.querySelector('.start-submenu');
+            const submenu = item.querySelector(':scope > .start-submenu');
             if (submenu) {
+                // Position and show the submenu
+                this.positionSubmenu(item, submenu);
+                submenu.classList.add('submenu-open');
+
                 // Update focusable items to submenu items
                 this.focusableItems = Array.from(submenu.querySelectorAll('.start-menu-item'));
                 this.focusedIndex = -1;
@@ -247,6 +251,8 @@ class StartMenuRendererClass {
      * Collapse submenu and return to parent menu
      */
     collapseSubmenu() {
+        // Close any open submenus
+        this.closeAllSubmenus();
         // Reset to top-level items
         this.updateFocusableItems();
         this.focusedIndex = -1;
@@ -342,6 +348,9 @@ class StartMenuRendererClass {
                 el.classList.remove('keyboard-focused');
             });
         }
+
+        // Close all open submenus
+        this.closeAllSubmenus();
 
         this.element.classList.remove('active');
         this.startButton.classList.remove('active');
@@ -573,24 +582,81 @@ class StartMenuRendererClass {
     }
 
     /**
-     * Attach hover handlers to reposition submenus that would go off-screen
-     * Note: Click handlers are handled via event delegation in handleMenuClick()
+     * Attach hover handlers to show/hide and position submenus
+     * Uses JavaScript visibility control instead of CSS :hover for proper fixed positioning
      */
     attachSubmenuPositioning() {
         const submenuTriggers = this.element.querySelectorAll('.submenu-trigger');
 
         submenuTriggers.forEach(trigger => {
-            trigger.addEventListener('mouseenter', () => {
-                const submenu = trigger.querySelector(':scope > .start-submenu');
-                if (submenu) {
-                    this.positionSubmenu(trigger, submenu);
+            const submenu = trigger.querySelector(':scope > .start-submenu');
+            if (!submenu) return;
+
+            // Show submenu when entering trigger
+            trigger.addEventListener('mouseenter', (e) => {
+                // Don't process if entering from a child element (prevents re-triggering)
+                if (e.relatedTarget && trigger.contains(e.relatedTarget)) return;
+
+                // Close sibling submenus (other submenus at the same level)
+                const parent = trigger.parentElement;
+                if (parent) {
+                    parent.querySelectorAll(':scope > .submenu-trigger > .start-submenu.submenu-open').forEach(sibling => {
+                        if (sibling !== submenu) {
+                            sibling.classList.remove('submenu-open');
+                            // Also close nested submenus of the sibling
+                            sibling.querySelectorAll('.start-submenu.submenu-open').forEach(nested => {
+                                nested.classList.remove('submenu-open');
+                            });
+                        }
+                    });
                 }
+
+                // Position and show this submenu
+                this.positionSubmenu(trigger, submenu);
+                submenu.classList.add('submenu-open');
             });
 
-            // Note: We intentionally don't reset positioning on mouseleave
-            // because the submenu is a child of the trigger - resetting position
-            // while hovering the submenu would cause it to jump away.
-            // The CSS handles hiding the submenu when the parent loses hover state.
+            // Hide submenu when leaving trigger, but only if not entering the submenu
+            trigger.addEventListener('mouseleave', (e) => {
+                // Check if we're moving into the submenu (or any of its descendants)
+                const relatedTarget = e.relatedTarget;
+                if (relatedTarget && (submenu.contains(relatedTarget) || submenu === relatedTarget)) {
+                    // Moving into the submenu, keep it open
+                    return;
+                }
+
+                // Check if we're moving to another part of this trigger
+                if (relatedTarget && trigger.contains(relatedTarget)) {
+                    return;
+                }
+
+                // Close this submenu and its nested submenus
+                submenu.classList.remove('submenu-open');
+                submenu.querySelectorAll('.start-submenu.submenu-open').forEach(nested => {
+                    nested.classList.remove('submenu-open');
+                });
+            });
+
+            // Handle leaving the submenu itself
+            submenu.addEventListener('mouseleave', (e) => {
+                const relatedTarget = e.relatedTarget;
+
+                // If moving back to trigger or staying within the submenu tree, keep open
+                if (relatedTarget && (trigger.contains(relatedTarget) || trigger === relatedTarget)) {
+                    return;
+                }
+
+                // If moving to a nested submenu, keep open
+                if (relatedTarget && submenu.contains(relatedTarget)) {
+                    return;
+                }
+
+                // Close this submenu and nested submenus
+                submenu.classList.remove('submenu-open');
+                submenu.querySelectorAll('.start-submenu.submenu-open').forEach(nested => {
+                    nested.classList.remove('submenu-open');
+                });
+            });
         });
     }
 
@@ -616,14 +682,17 @@ class StartMenuRendererClass {
         const itemCount = submenu.querySelectorAll('.start-menu-item').length;
         console.log(`[StartMenuRenderer] Positioning submenu for "${triggerName}" with ${itemCount} items`);
 
-        // Temporarily show to measure
-        const wasHidden = getComputedStyle(submenu).display === 'none';
-        if (wasHidden) {
-            submenu.style.visibility = 'hidden';
-            submenu.style.display = 'block';
-        }
+        // Temporarily show to measure (visibility:hidden keeps layout but hides visually)
+        const originalDisplay = submenu.style.display;
+        const originalVisibility = submenu.style.visibility;
+        submenu.style.visibility = 'hidden';
+        submenu.style.display = 'block';
 
         const submenuRect = submenu.getBoundingClientRect();
+
+        // Restore original inline styles (class will control actual display)
+        submenu.style.display = originalDisplay;
+        submenu.style.visibility = originalVisibility;
 
         // Check if submenu would overflow to the right
         if (left + submenuRect.width > viewportWidth) {
@@ -643,15 +712,22 @@ class StartMenuRendererClass {
             }
         }
 
+        // Ensure top is not negative
+        if (top < 0) top = 0;
+
         // Apply positioning
         submenu.style.left = `${left}px`;
         submenu.style.top = `${top}px`;
+    }
 
-        // Restore visibility
-        if (wasHidden) {
-            submenu.style.visibility = '';
-            submenu.style.display = '';
-        }
+    /**
+     * Close all open submenus
+     */
+    closeAllSubmenus() {
+        if (!this.element) return;
+        this.element.querySelectorAll('.start-submenu.submenu-open').forEach(submenu => {
+            submenu.classList.remove('submenu-open');
+        });
     }
 }
 
