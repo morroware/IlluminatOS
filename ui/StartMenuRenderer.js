@@ -687,40 +687,25 @@ class StartMenuRendererClass {
         const taskbarHeight = 50;
         const maxBottom = viewportHeight - taskbarHeight;
 
-        const triggerName = trigger.querySelector('span:not(.submenu-arrow):not(.start-menu-icon)')?.textContent || 'unknown';
-
         // Reset constraints
         submenu.style.maxHeight = '';
-
-        // CRITICAL: Hide ALL nested submenus inside this submenu to prevent them from affecting layout
-        const nestedSubmenus = submenu.querySelectorAll('.start-submenu');
-        nestedSubmenus.forEach(nested => {
-            nested.style.display = 'none';
-        });
 
         // Show submenu to measure it
         submenu.style.visibility = 'hidden';
         submenu.style.display = 'block';
 
-        // Now get accurate trigger position (nested submenus are hidden, so layout is correct)
+        // Get trigger position (position: fixed submenus are relative to viewport)
         const triggerRect = trigger.getBoundingClientRect();
 
         // Position to the right of the trigger, aligned with its top
         let left = triggerRect.right;
         let top = triggerRect.top;
 
-        console.log(`[Submenu] "${triggerName}" triggerRect: left=${triggerRect.left}, top=${triggerRect.top}, right=${triggerRect.right}, bottom=${triggerRect.bottom}`);
-
         submenu.style.left = `${left}px`;
         submenu.style.top = `${top}px`;
 
         const submenuWidth = submenu.offsetWidth;
         const submenuHeight = submenu.offsetHeight;
-
-        // Restore nested submenus (they'll be hidden by CSS unless they have .submenu-open)
-        nestedSubmenus.forEach(nested => {
-            nested.style.display = '';
-        });
 
         // Horizontal overflow - flip to left if needed
         if (left + submenuWidth > viewportWidth - 4) {
@@ -738,8 +723,6 @@ class StartMenuRendererClass {
         submenu.style.left = `${Math.round(left)}px`;
         submenu.style.top = `${Math.round(top)}px`;
         submenu.style.visibility = 'visible';
-
-        console.log(`[Submenu] "${triggerName}" final: left=${Math.round(left)}, top=${Math.round(top)}, size=${submenuWidth}x${submenuHeight}`);
     }
 
     /**

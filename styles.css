@@ -4926,7 +4926,11 @@ select:focus-visible {
 }
 
 /* Menu animation optimization */
-.start-menu,
+/* NOTE: start-menu cannot have will-change: transform as it breaks position: fixed on submenus */
+.start-menu {
+    will-change: opacity;
+}
+
 .context-menu {
     will-change: opacity, transform;
 }
