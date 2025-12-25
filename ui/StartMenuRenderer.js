@@ -707,29 +707,43 @@ class StartMenuRendererClass {
         submenu.style.display = '';
         submenu.style.visibility = '';
 
-        // Default position: to the right of trigger, aligned at trigger's top
-        let left = triggerRect.right;
-        let top = triggerRect.top;
+        // Determine horizontal position based on nesting level
+        let left, top;
 
-        // For nested submenus (trigger is inside another submenu),
-        // position relative to the trigger's position
+        // Check if this trigger is inside another submenu (nested) or in the main start menu (first level)
         const parentSubmenu = trigger.closest('.start-submenu');
+
         if (parentSubmenu) {
-            // This is a nested submenu - position to the right of parent submenu
+            // NESTED submenu - position to the right of the parent submenu
             const parentRect = parentSubmenu.getBoundingClientRect();
             left = parentRect.right;
+            top = triggerRect.top;
+        } else {
+            // FIRST-LEVEL submenu - position to the right of the start menu
+            const startMenu = document.getElementById('startMenu');
+            if (startMenu) {
+                const startMenuRect = startMenu.getBoundingClientRect();
+                left = startMenuRect.right;
+            } else {
+                left = triggerRect.right;
+            }
+            top = triggerRect.top;
         }
 
         // Check horizontal overflow - if goes off right edge, flip to left side
         if (left + submenuWidth > viewportWidth - 4) {
-            // Try positioning to the left of the trigger/parent
             if (parentSubmenu) {
                 const parentRect = parentSubmenu.getBoundingClientRect();
                 left = parentRect.left - submenuWidth;
             } else {
-                left = triggerRect.left - submenuWidth;
+                const startMenu = document.getElementById('startMenu');
+                if (startMenu) {
+                    const startMenuRect = startMenu.getBoundingClientRect();
+                    left = startMenuRect.left - submenuWidth;
+                } else {
+                    left = triggerRect.left - submenuWidth;
+                }
             }
-            // If still off-screen, just align to left edge with padding
             if (left < 4) {
                 left = 4;
             }
@@ -738,14 +752,12 @@ class StartMenuRendererClass {
         // Check vertical overflow - if goes below taskbar, shift up
         const maxBottom = viewportHeight - taskbarHeight;
         if (top + submenuHeight > maxBottom) {
-            // Shift up so bottom aligns with available space
             top = maxBottom - submenuHeight;
         }
 
         // If shifted too far up (off top of screen), pin to top
         if (top < 4) {
             top = 4;
-            // If submenu is taller than available space, constrain height
             const availableHeight = maxBottom - 8;
             if (submenuHeight > availableHeight) {
                 submenu.style.maxHeight = `${availableHeight}px`;
